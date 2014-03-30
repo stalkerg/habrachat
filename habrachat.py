@@ -39,6 +39,7 @@ define("max_start_messages", default=149, help="Max messages for send after init
 define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
 define("port", default=8888, help="Server port")
+define("hostname", default="localhost", help="Server port")
 
 mp_users = dict() #Users for this instans
 mp_hubs = dict()
@@ -285,7 +286,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			return
 		client = httpclient.AsyncHTTPClient()
 		response = yield client.fetch(
-			"http://u-login.com/token.php?token=%s&host=%s" % (token, self.request.host), 
+			"http://u-login.com/token.php?token=%s&host=%s" % (token, options.hostname), 
 			use_gzip=True
 		)
 		if response.code != 200:
