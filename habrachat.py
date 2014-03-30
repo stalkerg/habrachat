@@ -299,6 +299,12 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			self.finish()
 			return
 
+		json_response = json_decode(response.body)
+		if "error" in json_response:
+			log.warning("Error auth: %s" % json_response["error"])
+			self.finish()
+			return
+
 		identity = json_response.get("identity")
 		if not identity:
 			log.error("Not have indentity! json: %s"%json_response)
