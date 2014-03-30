@@ -437,10 +437,10 @@ if __name__ ==  "__main__":
 
 	if len(sys.argv)==3 and sys.argv[2]=="daemon":
 		import lockfile, daemon
-		log = open("tornado." + str(options.port) + ".log", "a+")
+		log_daemon = open("tornado." + str(options.port) + ".log", "a+")
 		ctx = daemon.DaemonContext(
-			stdout=log, 
-			stderr=log,
+			stdout=log_daemon, 
+			stderr=log_daemon,
 			working_directory=".",
 			pidfile=lockfile.FileLock("/tmp/habrachat.pid"))
 		ctx.open()
