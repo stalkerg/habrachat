@@ -435,14 +435,14 @@ def set_process_name(name):
 if __name__ ==  "__main__":
 	tornado.options.parse_config_file(sys.argv[1])
 
-	if len(sys.argv)==3 and sys.argv[1]=="daemon":
+	if len(sys.argv)==3 and sys.argv[2]=="daemon":
 		import lockfile, daemon
 		log = open("tornado." + str(options.port) + ".log", "a+")
 		ctx = daemon.DaemonContext(
 			stdout=log, 
 			stderr=log,
 			working_directory=".",
-			pidfile=lockfile.FileLock("/tmp/tornado-chat.pid"))
+			pidfile=lockfile.FileLock("/tmp/habrachat.pid"))
 		ctx.open()
 	
 	server = tornado.httpserver.HTTPServer(application)
