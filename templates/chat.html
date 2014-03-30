@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Хабрачат</title>
+
+		<!-- Bootstrap -->
+		<link href="//netdna.bootstrapcdn.com/bootswatch/3.1.1/flatly/bootstrap.min.css" rel="stylesheet">
+
+		<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+		<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+		<!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+		<link href="/static/chat.css" rel="stylesheet">
+		<script type="text/javascript">
+			var baseURL = window.location.href;
+			var dojoConfig = {
+				baseUrl: baseURL,
+				async: true,
+				paths: {
+					
+				}
+			}
+		</script>
+		<script src="//yandex.st/dojo/1.9.1/dojo/dojo.js"></script>
+		<script type="text/javascript">
+			var ChatApp = null;
+			
+			require(["static/chat.js"], function(App){
+				ChatApp = new App();
+			});
+		</script>
+
+	</head>
+	<body>
+		<div class="vertical-flex-wrapper">
+			<div class="left-column">
+				<div class="horizontal-flex-wrapper">
+					<div class="input-row">
+						<div class="input-flex-wrapper">
+							<div>
+								<textarea class="form-control" rows="2" id="message_textarea"></textarea>
+							</div>
+							<div>
+								<button type="button" class="btn btn-default" id="chat_send_button">Отправить</button>
+							</div>
+						</div>
+					</div>
+					<div class="chat-messages">
+						<table class="table table-striped table-bordered">
+							<tbody  id="chat_table">
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div class="right-column">
+				<ul class="nav nav-tabs">
+					<li id="chat_users_tab" class="active"><a href="#">Чатлане</a></li>
+					<li id="chat_hubs_tab"><a href="#">Хабы</a></li>
+				</ul>
+				<div class="right-column-content">
+					<div id="chat_users" class="users"></div>
+					<div id="chat_hubs" class="hubs">
+						<ul class="list-group" id="chat_hubs_list">
+							<li class="list-group-item">
+						 		<span class="badge">14</span>
+								Криптография
+							</li>
+							<li class="list-group-item">
+						 		<span class="badge">4</span>
+								Смартфоны и коммуникаторы
+							</li>
+							<li class="list-group-item">
+						 		<span class="badge">2</span>
+								Беспроводные технологии
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

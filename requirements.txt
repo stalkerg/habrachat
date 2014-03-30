@@ -1,0 +1,5 @@
+setuptools
+Tornado >= 3.2 
+python-dateutil >= 1.5
+tornado-redis >= 2.4.16
+pytz
