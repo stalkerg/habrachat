@@ -38,6 +38,7 @@ define("max_save_messages", default=1499, help="Max save messages in redis")
 define("max_start_messages", default=149, help="Max messages for send after init socket")
 define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
+define("port", default=8888, help="Server port")
 
 mp_users = dict() #Users for this instans
 mp_hubs = dict()
@@ -432,10 +433,11 @@ def set_process_name(name):
 		pass # Ignore errors, since this is only cosmetic
 
 if __name__ ==  "__main__":
-	port = 8888
+	tornado.options.parse_config_file(sys.argv[1])
+
 	if len(sys.argv)==3 and sys.argv[1]=="daemon":
 		import lockfile, daemon
-		log = open("tornado." + str(port) + ".log", "a+")
+		log = open("tornado." + str(options.port) + ".log", "a+")
 		ctx = daemon.DaemonContext(
 			stdout=log, 
 			stderr=log,
@@ -443,10 +445,8 @@ if __name__ ==  "__main__":
 			pidfile=lockfile.FileLock("/tmp/tornado-chat.pid"))
 		ctx.open()
 	
-	tornado.options.parse_config_file(sys.argv[1])
-
 	server = tornado.httpserver.HTTPServer(application)
-	server.bind(port)
+	server.bind(options.port)
 	set_process_name("habrachat")
 	
 	# start(0) starts a subprocess for each CPU core
