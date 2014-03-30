@@ -10,7 +10,10 @@ install_requires=[
 	'Tornado >= 3.2', 
 	'python-dateutil >= 1.5',
 	'tornado-redis >= 2.4.16',
-	'pytz'
+	'pytz',
+	'setproctitle',
+	'lockfile',
+	'python-daemon'
 ]
 
 setup(name='habrachat',
