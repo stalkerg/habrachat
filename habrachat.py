@@ -299,7 +299,9 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			self.finish()
 			return
 
-		identity = json_response["identity"]
+		identity = json_response.get("identity")
+		if not identity:
+			log.error("Not have indentity! json: %s"%json_response)
 		log.info("New user indetity: %s"%identity)
 		user_id = hashlib.md5(identity).hexdigest()
 		new_user = {"id": user_id}
