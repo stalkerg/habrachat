@@ -79,7 +79,7 @@ define([
 		},
 		websocket_init: function () {
 			var self = this;
-			chat_ws = new WebSocket("ws://"+window.location.hostname+":8888/start-chat?"+current_hub_url);
+			chat_ws = new WebSocket("ws://"+window.location.hostname+"/start-chat?"+current_hub_url);
 			chat_ws.onopen = function() { self.onopen(); };
 			chat_ws.onmessage = function(evt) { self.onmessage(evt); };
 			chat_ws.onclose = function(evt) { self.onmessage(evt); };

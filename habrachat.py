@@ -109,16 +109,20 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			#log.info("User id:%s"%habrachat_user["id"] )
 			#Checks for the user in the chat
 			my_realnew_user = [user for sockets,  user in mp_users.iteritems() if habrachat_user["id"] == user["id"] and hub == user["hub"]]
+			log.info(remote_users)
+			if not my_realnew_user and habrachat_user["id"] in remote_users and remote_users[habrachat_user["id"]]["hub"] == hub:
+				my_realnew_user = [remote_users[habrachat_user["id"]]]
+
 			if not my_realnew_user: #Send about new user to all users
 				for sockets, user in ifilter(lambda (s, u): habrachat_user["id"] != u["id"] and hub == u["hub"], mp_users.iteritems()):
 					sockets.write_message(new_user_message)
 			
-			#Send new users to other instance
-			yield tornado.gen.Task(
-				self.redis.publish, 
-				"new_messages", 
-				new_user_message
-			)
+				#Send new users to other instance
+				yield tornado.gen.Task(
+					self.redis.publish, 
+					"new_messages", 
+					new_user_message
+				)
 
 			log.info("%s WebSocket opened by %s for hub %s "%(self.subscriber.instance_id, habrachat_user["name"], hub))
 			
@@ -251,6 +255,8 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			del mp_users[self]
 			
 			my_realnew_user = [user for sockets, user in mp_users.items() if my_id == user["id"] and hub == user["hub"]]
+			if not my_realnew_user and my_id in remote_users and remote_users[my_id]["hub"] == hub:
+				my_realnew_user = [remote_users[my_id]]
 			mp_hubs[hub]["users"] -= 1
 
 			new_message = json_encode({
@@ -264,7 +270,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					if my_id != user["id"] and hub == user["hub"]:
 						sockets.write_message(new_message)
 
-			yield tornado.gen.Task(self.redis.publish, "new_messages", new_message)
+				yield tornado.gen.Task(self.redis.publish, "new_messages", new_message)
 		else:
 			log.warning("Not found user after close socket")
 
@@ -426,6 +432,10 @@ class Subscriber(object):
 				if chat_message["hub"] == user["hub"]:
 					sockets.write_message(message.body)
 
+@gen.engine
+def init_subscribe():
+	Subscriber(application.settings["redis"])
+
 application = tornado.web.Application([
 	(r'/start-chat', ChatHandler),
 	(r'/auth', AuthHandler),
@@ -484,4 +494,5 @@ if __name__ ==  "__main__":
 		log.error("Can't connect to redis.")
 	else:
 		# Delayed initialization of settings
+		tornado.ioloop.IOLoop.instance().add_callback(init_subscribe)
 		tornado.ioloop.IOLoop.instance().start()
