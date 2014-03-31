@@ -5,3 +5,5 @@ tornado-redis >= 2.4.16
 pytz
 setproctitle
 lockfile
+python-daemon
+bbcode

@@ -20,6 +20,7 @@ import hashlib
 
 from base64 import b64encode
 from tornado.escape import json_decode, xhtml_escape
+import bbcode
 import datetime
 import time
 from pytz import timezone
@@ -167,7 +168,8 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			my_user = mp_users[self]
 			time_now = datetime.datetime.now(current_zone)
 			my_user["last_event_time"] = time_now.strftime("%Y-%m-%dT%H:%M:%S%z")
-			new_message_text = xhtml_escape(message["message"])
+			#new_message_text = xhtml_escape(message["message"])
+			new_message_text = bbcode.render_html(message["message"])
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({

@@ -13,7 +13,8 @@ install_requires=[
 	'pytz',
 	'setproctitle',
 	'lockfile',
-	'python-daemon'
+	'python-daemon',
+	'bbcode'
 ]
 
 setup(name='habrachat',
