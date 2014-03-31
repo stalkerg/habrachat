@@ -79,7 +79,7 @@ define([
 		},
 		websocket_init: function () {
 			var self = this;
-			chat_ws = new WebSocket("ws://"+window.location.hostname+"/start-chat?"+current_hub_url);
+			chat_ws = new WebSocket("ws://"+window.location.host+"/start-chat?"+current_hub_url);
 			chat_ws.onopen = function() { self.onopen(); };
 			chat_ws.onmessage = function(evt) { self.onmessage(evt); };
 			chat_ws.onclose = function(evt) { self.onmessage(evt); };
@@ -100,6 +100,7 @@ define([
 			data = JSON.parse(evt.data);
 			//console.log(data.type);
 			if (data.type=="all_users") {
+				console.log("all_users");
 				query("#chat_users > *").forEach(domConstruct.destroy);
 				for (var i=0; i<data.users.length; i++) {
 					if (data.users[i].iam != null) {
@@ -132,7 +133,9 @@ define([
 				});
 			} else if (data.type=="new_user") {
 				console.log("new_user");
-				domConstruct.place(self.create_new_user(data.user), self.chat_users, "last");
+				if (dom.byId("chat_user_"+data.user.id)==null) {
+					domConstruct.place(self.create_new_user(data.user), self.chat_users, "last");
+				}
 			} else if (data.type=="del_user") {
 				console.log("del_user");
 				domConstruct.destroy(dom.byId("chat_user_"+data.user_id));

@@ -40,6 +40,8 @@ define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
 define("port", default=8888, help="Server port")
 define("hostname", default="localhost", help="Server port")
+define("subprocess", default=1, help="Num of subprocess")
+
 
 mp_users = dict() #Users for this instans
 mp_hubs = dict()
@@ -109,7 +111,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			#log.info("User id:%s"%habrachat_user["id"] )
 			#Checks for the user in the chat
 			my_realnew_user = [user for sockets,  user in mp_users.iteritems() if habrachat_user["id"] == user["id"] and hub == user["hub"]]
-			log.info(remote_users)
+			#log.info(remote_users)
 			if not my_realnew_user and habrachat_user["id"] in remote_users and remote_users[habrachat_user["id"]]["hub"] == hub:
 				my_realnew_user = [remote_users[habrachat_user["id"]]]
 
@@ -138,7 +140,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 
 			#and from remote users
 			for user in remote_users.itervalues():
-				if hub==user["hub"]:
+				if hub==user["hub"] and user["id"] not in uniq_users:
 					uniq_users[user["id"]] = dict(user)
 
 			#Send all uniq user to new user			
@@ -270,7 +272,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					if my_id != user["id"] and hub == user["hub"]:
 						sockets.write_message(new_message)
 
-				yield tornado.gen.Task(self.redis.publish, "new_messages", new_message)
+			yield tornado.gen.Task(self.redis.publish, "new_messages", new_message)
 		else:
 			log.warning("Not found user after close socket")
 
@@ -420,6 +422,10 @@ class Subscriber(object):
 					mp_hubs[chat_message["hub"]]["users"] -= 1
 				except KeyError:
 					log.error("Not found remote_user %s"%chat_message["user_id"])
+					return
+				if chat_message["user_id"] in [user["id"] for user in mp_users.itervalues()]:
+					return
+				log.info("remote del user")
 			elif chat_message["type"] == "new_message":
 				pass
 			elif chat_message["type"] == "delete_message":
@@ -469,7 +475,7 @@ if __name__ ==  "__main__":
 	set_process_name("habrachat")
 	
 	# start(0) starts a subprocess for each CPU core
-	server.start(0)
+	server.start(options.subprocess)
 	set_process_name("habrachat")
 	
 
