@@ -1,5 +1,5 @@
 <tr class="${tr_class}" data-user-id="${user_id}" data-datetime="${datetime}">
-	<td>
+	<td data-name="${name}" onclick='ChatApp.put_user_name(this)'>
 		<img src="${avatar}" alt="avatar" style="max-width: 32px; max-height: 32px;">
 		${name}<br>
 		${format_datetime}

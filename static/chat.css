@@ -345,6 +345,7 @@ button {
 
 .chat-messages table tr td:first-child {
 	vertical-align: middle;
+	cursor: pointer;
 }
 
 .chat-messages table tr td:nth-child(3) {
