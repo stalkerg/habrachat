@@ -134,12 +134,12 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				for sockets, user in ifilter(lambda (s, u): habrachat_user["id"] != u["id"] and hub == u["hub"], mp_users.iteritems()):
 					sockets.write_message(new_user_message)
 			
-				#Send new users to other instance
-				yield tornado.gen.Task(
-					self.redis.publish, 
-					"new_messages", 
-					new_user_message
-				)
+			#Send new users to other instance
+			yield tornado.gen.Task(
+				self.redis.publish, 
+				"new_messages", 
+				new_user_message
+			)
 
 			log.info("%s WebSocket opened by %s for hub:%s session_id:%s"%(self.subscriber.instance_id, habrachat_user["name"], hub, habrachat_user["session_id"]))
 			
@@ -445,7 +445,7 @@ class Subscriber(object):
 					del remote_users[chat_message["session_id"]]
 				except KeyError:
 					log.error("%s Not found remote_user %s"% (self.instance_id, chat_message["user_id"]))
-					log.error(remote_users)
+					#log.error(remote_users)
 					return
 
 				
