@@ -406,6 +406,10 @@ button {
 	transition: all 0.5s;
 }
 
+.chat-messages > table {
+	table-layout: fixed;
+}
+
 .chat-messages table tr td:first-child {
 	vertical-align: middle;
 	cursor: pointer;
