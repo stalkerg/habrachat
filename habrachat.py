@@ -188,7 +188,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			new_message_text = render_bbcode(message["message"])
 			if len(new_message_text) > 2000:
 				return
-			
+
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({
@@ -471,7 +471,10 @@ class Subscriber(object):
 
 			for sockets, user in mp_users.iteritems():
 				if chat_message["hub"] == user["hub"]:
-					sockets.write_message(message.body)
+					try:
+						sockets.write_message(message.body)
+					except tornado.websocket.WebSocketClosedError:
+						pass
 
 @gen.engine
 def init_subscribe():
