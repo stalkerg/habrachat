@@ -77,6 +77,18 @@ except ImportError:
 def json_encode(value, default=None):
 	return json.dumps(value, default=default).replace("</", "<\\/")
 
+def have_remote_users(id, hub):
+	for user in remote_users.itervalues():
+		 if user["id"] == id and user["hub"] == hub:
+		 	return True
+	return False
+
+def have_local_users(id, hub):
+	for user in mp_users.itervalues():
+		 if user["id"] == id and user["hub"] == hub:
+		 	return True
+	return False
+
 class BaseHandler(object):
 	@property
 	def redis(self):
@@ -102,6 +114,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			habrachat_user = json_decode(habrachat_user)
 			habrachat_user["last_event_time"] = datetime.datetime.now(current_zone).strftime("%Y-%m-%dT%H:%M:%S%z")
 			habrachat_user["hub"] = hub
+			habrachat_user["session_id"] = _session_id()
 
 			new_user_message = json_encode({
 				"type": "new_user",
@@ -111,10 +124,11 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			})
 			#log.info("User id:%s"%habrachat_user["id"] )
 			#Checks for the user in the chat
-			my_realnew_user = [user for sockets,  user in mp_users.iteritems() if habrachat_user["id"] == user["id"] and hub == user["hub"]]
+			my_realnew_user = [user for user in mp_users.itervalues() if habrachat_user["id"] == user["id"] and hub == user["hub"]]
 			#log.info(remote_users)
-			if not my_realnew_user and habrachat_user["id"] in remote_users and remote_users[habrachat_user["id"]]["hub"] == hub:
-				my_realnew_user = [remote_users[habrachat_user["id"]]]
+
+			if not my_realnew_user:
+				my_realnew_user = have_remote_users(habrachat_user["id"], habrachat_user["hub"])
 
 			if not my_realnew_user: #Send about new user to all users
 				for sockets, user in ifilter(lambda (s, u): habrachat_user["id"] != u["id"] and hub == u["hub"], mp_users.iteritems()):
@@ -127,7 +141,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					new_user_message
 				)
 
-			log.info("%s WebSocket opened by %s for hub %s "%(self.subscriber.instance_id, habrachat_user["name"], hub))
+			log.info("%s WebSocket opened by %s for hub:%s session_id:%s"%(self.subscriber.instance_id, habrachat_user["name"], hub, habrachat_user["session_id"]))
 			
 			mp_users[self] = habrachat_user
 			
@@ -256,18 +270,22 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			log.info("WebSocket closed by %s"%mp_users[self]["name"])
 			my_id = mp_users[self]["id"]
 			hub = mp_users[self]["hub"]
+			session_id = mp_users[self]["session_id"]
 			del mp_users[self]
 			
 			my_realnew_user = [user for sockets, user in mp_users.items() if my_id == user["id"] and hub == user["hub"]]
-			if not my_realnew_user and my_id in remote_users and remote_users[my_id]["hub"] == hub:
-				my_realnew_user = [remote_users[my_id]]
-			mp_hubs[hub]["users"] -= 1
+			if not my_realnew_user:
+				my_realnew_user = have_remote_users(my_id, hub)
+			
+			if not my_realnew_user:
+				mp_hubs[hub]["users"] -= 1
 
 			new_message = json_encode({
 				"type":"del_user", 
 				"instance_id": self.subscriber.instance_id,
 				"hub": hub,
-				"user_id":my_id
+				"user_id": my_id,
+				"session_id": session_id
 			})
 			if not my_realnew_user:
 				for sockets, user in mp_users.items():
@@ -402,9 +420,10 @@ class Subscriber(object):
 				return
 			elif chat_message["type"] == "all_users_sub":
 				for new_user in chat_message["users"]:
-					if new_user["id"] not in remote_users:
+					remote_users[new_user["session_id"]] = new_user
+					if not (have_remote_users(new_user["id"], new_user["hub"]) or have_local_users(new_user["id"], new_user["hub"])):
 						mp_hubs[new_user["hub"]]["users"] += 1
-						remote_users[new_user["id"]] = new_user
+						
 						new_user_message = json_encode({
 							"type": "new_user",
 							"instance_id": self.instance_id,
@@ -416,18 +435,27 @@ class Subscriber(object):
 								sockets.write_message(new_user_message)
 				return
 			elif chat_message["type"] == "new_user":
-				mp_hubs[chat_message["hub"]]["users"] += 1
-				remote_users[chat_message["user"]["id"]] = chat_message["user"]
+				#log.info("%s New remote user with session_id: %s and id:%s"%(self.instance_id, chat_message["user"]["session_id"], chat_message["user"]["id"]))
+				if  not (have_remote_users(chat_message["user"]["id"], chat_message["user"]["hub"]) or have_local_users(chat_message["user"]["id"], chat_message["user"]["hub"])):
+					mp_hubs[chat_message["hub"]]["users"] += 1
+				remote_users[chat_message["user"]["session_id"]] = chat_message["user"]
 			elif chat_message["type"] == "del_user":
+				#log.info("%s Start del_user remote_user id:%s session_id:%s"% (self.instance_id, chat_message["user_id"], chat_message["session_id"]))
 				try:
-					del remote_users[chat_message["user_id"]]
-					mp_hubs[chat_message["hub"]]["users"] -= 1
+					del remote_users[chat_message["session_id"]]
 				except KeyError:
-					log.error("Not found remote_user %s"%chat_message["user_id"])
+					log.error("%s Not found remote_user %s"% (self.instance_id, chat_message["user_id"]))
+					log.error(remote_users)
 					return
-				if chat_message["user_id"] in [user["id"] for user in mp_users.itervalues()]:
+
+				
+				have_user = have_remote_users(chat_message["user_id"], chat_message["hub"]) or have_local_users(chat_message["user_id"], chat_message["hub"])
+				if have_user:
 					return
-				log.info("remote del user")
+				else:
+					mp_hubs[chat_message["hub"]]["users"] -= 1
+					
+				
 			elif chat_message["type"] == "new_message":
 				pass
 			elif chat_message["type"] == "delete_message":
