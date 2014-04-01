@@ -115,6 +115,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			habrachat_user["last_event_time"] = datetime.datetime.now(current_zone).strftime("%Y-%m-%dT%H:%M:%S%z")
 			habrachat_user["hub"] = hub
 			habrachat_user["session_id"] = _session_id()
+			habrachat_user["name"] = xhtml_escape(habrachat_user["name"])
 
 			new_user_message = json_encode({
 				"type": "new_user",
