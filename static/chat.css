@@ -411,6 +411,10 @@ button {
 	cursor: pointer;
 }
 
+.chat-messages table tr td:nth-child(2) {
+	overflow: hidden;
+}
+
 .chat-messages table tr td:nth-child(3) {
 	vertical-align: middle;
 	text-align: center;

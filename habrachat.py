@@ -186,6 +186,9 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			my_user["last_event_time"] = time_now.strftime("%Y-%m-%dT%H:%M:%S%z")
 			#new_message_text = xhtml_escape(message["message"])
 			new_message_text = render_bbcode(message["message"])
+			if len(new_message_text) > 2000:
+				return
+			
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({
