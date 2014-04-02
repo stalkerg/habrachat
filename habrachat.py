@@ -107,18 +107,18 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		if not habrachat_cookie:
 			log.info("Not have cookie")
 			self.close()
+			return
 
 		#log.info("Have cookie %s"%habrachat_cookie)
 		habrachat_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
 		if habrachat_user:
-			
-
 			hub = self.get_argument("hub", options.hubs[0]["name"])
 			#log.info("Have user")
 			habrachat_user = json_decode(habrachat_user)
 			if habrachat_user["id"] in ban_list:
 				log.info("Ban user")
 				self.close()
+				return
 
 			habrachat_user["last_event_time"] = datetime.datetime.now(current_zone).strftime("%Y-%m-%dT%H:%M:%S%z")
 			habrachat_user["hub"] = hub
