@@ -448,3 +448,11 @@ button {
 	max-width: 300px;
 	max-height: 300px;
 }
+
+#tags_help {
+	display: inline-block;
+}
+
+#tags_help button {
+	margin-right: 5px;
+}

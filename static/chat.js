@@ -33,6 +33,19 @@ define([
 		return text.substring(0, start.length)===start;
 	}
 
+	var get_sel_text = function() {
+		var txt = '';
+		if (window.getSelection) {
+			txt = window.getSelection();
+		} else if (document.getSelection) {
+			txt = document.getSelection();
+		} else if (document.selection) {
+			txt = document.selection.createRange().text;
+		} else return;
+
+		return txt.toString();
+	};
+
 	var 	chat_ws = null,
 		init_reconnect_timer = null,
 		fist_update = true,
@@ -126,6 +139,27 @@ define([
 				change_hub = true;
 				chat_ws.close();
 			});
+
+			var tags = {
+				"b": "[b]${text}[/b]",
+				"i": "[i]${text}[/i]",
+				"u": "[u]${text}[/u]",
+				"s": "[s]${text}[/s]",
+				"img": "[img][/img]",
+				"quote": "[quote]${text}[/quote]",
+				"size": "[size=15]${text}[/size=15]",
+				"color": "[color=red]${text}[/color=red]"
+			};
+			var	tags_help = dom.byId("tags_help"),
+				tag_node = null; 
+			for (key in tags) {
+				tag_node = domConstruct.toDom("<button type='button' class='btn btn-default btn-xs' data-patern='"+tags[key]+"'>"+key+"</button>");
+				on(tag_node, "click", function() {
+					self.message_textarea.value += string.substitute(this.getAttribute("data-patern"), {"text": get_sel_text()});
+				});
+				domConstruct.place(tag_node, tags_help, "last");
+				
+			}
 		},
 		websocket_init: function () {
 			var self = this;
@@ -136,7 +170,11 @@ define([
 		},
 		onopen: function() {
 			console.log("Open socket");
-			this.unlock_ui();
+			var self = this;
+			self.lock_ui("Ожидайте 5 секунд");
+			setTimeout(function() {
+				self.unlock_ui();
+			}, 7000);
 		},
 		onmessage: function(evt) {
 			var self = this;
