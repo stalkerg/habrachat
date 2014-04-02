@@ -55,7 +55,7 @@ define([
 			self.websocket_init();
 			on(dom.byId("chat_send_button"), "click", function(evt) {self.submit_message(evt)});
 			on(self.message_textarea, "keydown", function(evt) {
-				if (evt.ctrlKey && evt.keyCode == 13) {
+				if (evt.ctrlKey && evt.keyCode == 13 && dom.byId("chat_send_button").disabled == false) {
 					self.submit_message(evt);
 				}
 			});
