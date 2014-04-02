@@ -147,8 +147,8 @@ define([
 				"s": "[s]${text}[/s]",
 				"img": "[img][/img]",
 				"quote": "[quote]${text}[/quote]",
-				"size": "[size=15]${text}[/size=15]",
-				"color": "[color=red]${text}[/color=red]",
+				"size": "[size=15]${text}[/size]",
+				"color": "[color=red]${text}[/color]",
 				"center":"[center]${text}[/center]",
 				"code":"[code]${text}[/code]"
 			};
