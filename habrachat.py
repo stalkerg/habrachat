@@ -187,6 +187,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		if message["type"] == "new_message":
 			my_user = mp_users[self]
 			if my_user["id"] in ban_list:
+				log.info("Ban user")
 				self.close()
 				return
 			time_now = datetime.datetime.now(current_zone)
@@ -508,7 +509,7 @@ if __name__ ==  "__main__":
 
 	if len(sys.argv)==4 and sys.argv[3]=="daemon":
 		import lockfile, daemon
-		log_daemon = open("tornado." + sys.argv[2]+ ".log", "a+")
+		log_daemon = open("tornado.log", "a+")
 		ctx = daemon.DaemonContext(
 			stdout=log_daemon, 
 			stderr=log_daemon,
