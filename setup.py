@@ -14,7 +14,7 @@ install_requires=[
 	'setproctitle',
 	'lockfile',
 	'python-daemon',
-	'bbcode'
+	'postmarkup'
 ]
 
 setup(name='habrachat',

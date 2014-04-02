@@ -6,4 +6,4 @@ pytz
 setproctitle
 lockfile
 python-daemon
-bbcode
+postmarkup
