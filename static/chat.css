@@ -443,3 +443,8 @@ button {
 	padding-top: 10px;
 	display: none;
 }
+
+.chat-messages table img {
+	max-width: 300px;
+	max-height: 300px;
+}
