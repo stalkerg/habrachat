@@ -499,7 +499,7 @@ def set_process_name(name):
 if __name__ ==  "__main__":
 	tornado.options.parse_config_file(sys.argv[1])
 
-	if len(sys.argv)==3 and sys.argv[2]=="daemon":
+	if len(sys.argv)==4 and sys.argv[3]=="daemon":
 		import lockfile, daemon
 		log_daemon = open("tornado." + str(options.port) + ".log", "a+")
 		ctx = daemon.DaemonContext(
@@ -510,7 +510,7 @@ if __name__ ==  "__main__":
 		ctx.open()
 	
 	server = tornado.httpserver.HTTPServer(application)
-	server.bind(options.port)
+	server.bind(int(sys.argv[2]))
 	set_process_name("habrachat")
 	
 	# start(0) starts a subprocess for each CPU core
