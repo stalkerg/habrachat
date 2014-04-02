@@ -49,6 +49,7 @@ mp_users = dict() #Users for this instans
 mp_hubs = dict()
 templates = dict()
 remote_users = dict()
+ban_list = ["b9197a5778203a79f0086b3a0e68e956"]
 
 try:
 	import uuid
@@ -110,6 +111,9 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		#log.info("Have cookie %s"%habrachat_cookie)
 		habrachat_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
 		if habrachat_user:
+			if habrachat_user["id"] in ban_list:
+				log.info("Ban user")
+				self.close()
 			hub = self.get_argument("hub", options.hubs[0]["name"])
 			#log.info("Have user")
 			habrachat_user = json_decode(habrachat_user)
@@ -182,6 +186,9 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		message = json_decode(message)
 		if message["type"] == "new_message":
 			my_user = mp_users[self]
+			if my_user["id"] in ban_list:
+				self.close()
+				return
 			time_now = datetime.datetime.now(current_zone)
 			my_user["last_event_time"] = time_now.strftime("%Y-%m-%dT%H:%M:%S%z")
 			#new_message_text = xhtml_escape(message["message"])
@@ -506,7 +513,7 @@ if __name__ ==  "__main__":
 			stdout=log_daemon, 
 			stderr=log_daemon,
 			working_directory=".",
-			
+
 			pidfile=lockfile.FileLock("/tmp/habrachat"+sys.argv[2]+".pid"))
 		ctx.open()
 	
