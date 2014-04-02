@@ -227,12 +227,12 @@ define([
 				dom.byId("chat_send_button").innerHTML = text;
 			}
 			dom.byId("chat_send_button").disabled = true;
-			dom.byId("message_textarea").disabled = true;
+			//dom.byId("message_textarea").disabled = true;
 		},
 		unlock_ui: function () {
 			dom.byId("chat_send_button").disabled = false;
 			dom.byId("chat_send_button").innerHTML = "Отправить";
-			dom.byId("message_textarea").disabled = false;
+			//dom.byId("message_textarea").disabled = false;
 		},
 		clean_all_messages: function() {
 			query("#chat_table tr").forEach(domConstruct.destroy);

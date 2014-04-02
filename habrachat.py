@@ -196,6 +196,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				return
 			time_now = datetime.datetime.now(current_zone)
 			last_event_time = dateutil.parser.parse(my_user["last_event_time"])
+			#log.error(time_now-last_event_time)
 			my_user["last_event_time"] = time_now.strftime("%Y-%m-%dT%H:%M:%S%z")
 			if time_now-last_event_time < datetime.timedelta(seconds=5):
 				return
