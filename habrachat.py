@@ -506,7 +506,7 @@ if __name__ ==  "__main__":
 			stdout=log_daemon, 
 			stderr=log_daemon,
 			working_directory=".",
-			pidfile=lockfile.FileLock("/tmp/habrachat.pid"))
+			pidfile=lockfile.FileLock("/tmp/habrachat"+str(options.port)+".pid"))
 		ctx.open()
 	
 	server = tornado.httpserver.HTTPServer(application)
