@@ -148,7 +148,9 @@ define([
 				"img": "[img][/img]",
 				"quote": "[quote]${text}[/quote]",
 				"size": "[size=15]${text}[/size=15]",
-				"color": "[color=red]${text}[/color=red]"
+				"color": "[color=red]${text}[/color=red]",
+				"center":"[center]${text}[/center]",
+				"code":"[code]${text}[/code]"
 			};
 			var	tags_help = dom.byId("tags_help"),
 				tag_node = null; 
