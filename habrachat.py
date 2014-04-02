@@ -24,6 +24,7 @@ from tornado.escape import json_decode, xhtml_escape
 from postmarkup import render_bbcode
 import datetime
 import time
+import dateutil.parser
 from pytz import timezone
 
 current_zone = timezone('UTC')
@@ -194,7 +195,11 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				self.close()
 				return
 			time_now = datetime.datetime.now(current_zone)
+			last_event_time = dateutil.parser.parse(my_user["last_event_time"])
 			my_user["last_event_time"] = time_now.strftime("%Y-%m-%dT%H:%M:%S%z")
+			if time_now-last_event_time < datetime.timedelta(seconds=5):
+				return
+
 			#new_message_text = xhtml_escape(message["message"])
 			new_message_text = render_bbcode(message["message"])
 			if len(new_message_text) > 2000:

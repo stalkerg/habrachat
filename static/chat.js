@@ -222,12 +222,16 @@ define([
 				
 			}
 		},
-		lock_ui: function () {
+		lock_ui: function (text) {
+			if (text != null) {
+				dom.byId("chat_send_button").innerHTML = text;
+			}
 			dom.byId("chat_send_button").disabled = true;
 			dom.byId("message_textarea").disabled = true;
 		},
 		unlock_ui: function () {
 			dom.byId("chat_send_button").disabled = false;
+			dom.byId("chat_send_button").innerHTML = "Отправить";
 			dom.byId("message_textarea").disabled = false;
 		},
 		clean_all_messages: function() {
@@ -308,13 +312,16 @@ define([
 			}
 
 			evt.stopPropagation();
-			self.lock_ui();
+			self.lock_ui("Ожидайте 7 секунд");
 			chat_ws.send(JSON.stringify({
 				type:"new_message", 
 				message:self.message_textarea.value
 			}));
 			self.message_textarea.value = '';
-			self.unlock_ui();
+			setTimeout(function() {
+				self.unlock_ui();
+			}, 7000);
+			
 			//if (permission_notification.toLowerCase()=="default") {
 			//	Notification.requestPermission( function(result) { permission_notification = result  } );
 			//}
