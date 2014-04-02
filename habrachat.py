@@ -344,12 +344,13 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			log.error("Not have indentity! json: %s"%json_response)
 		log.info("New user indetity: %s"%identity)
 		user_id = hashlib.md5(identity).hexdigest()
-		new_user = {"id": user_id}
+		new_user = {"id": user_id, "name": None}
 		if "nickname" in json_response:
 			new_user["name"] = json_response.get("nickname").encode('UTF-8')
-		elif "first_name" in json_response:
+		if not new_user["name"] and "first_name" in json_response:
 			new_user["name"] = json_response.get("first_name").encode('UTF-8')
 
+		new_user["name"] = new_user["name"][:20]
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
 		

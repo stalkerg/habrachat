@@ -8,9 +8,11 @@ define([
 	"dojo/query",
 	"dojo/string",
 	"dojo/date/locale",
+	"dojo/date/stamp",
 	"dojo/text!/static/tmpl/user.html",
 	"dojo/text!/static/tmpl/message.html",
 	"dojo/text!/static/tmpl/hub.html",
+	"dojo/NodeList-dom",
 	"dojo/domReady!"
 ], function( 
 	declare,
@@ -22,6 +24,7 @@ define([
 	query,
 	string,
 	locale,
+	stamp,
 	user_template,
 	message_template,
 	hub_template
@@ -36,7 +39,8 @@ define([
 		my_user = null,
 		current_hub = "",
 		current_hub_url = "",
-		change_hub = false;
+		change_hub = false,
+		revert_chat_order = false;
 	return declare(null, {
 		constructor: function() {
 			var self = this;
@@ -47,6 +51,7 @@ define([
 			self.chat_hubs = dom.byId("chat_hubs_list");
 			self.lock_ui();
 			self.init_tabs();
+			self.init_settings();
 			self.websocket_init();
 			on(dom.byId("chat_send_button"), "click", function(evt) {self.submit_message(evt)});
 			on(self.message_textarea, "keydown", function(evt) {
@@ -67,14 +72,58 @@ define([
 			on(dom.byId("chat_users_tab"), "click", function() {
 				domClass.add(this, "active");
 				domClass.remove(dom.byId("chat_hubs_tab"), "active");
+				domClass.remove(dom.byId("chat_settings_tab"), "active");
+
 				domStyle.set(dom.byId("chat_hubs"), {display: "none"});
 				domStyle.set(dom.byId("chat_users"), {display: "block"});
+				domStyle.set(dom.byId("chat_settings"), {display: "none"});
 			});
 			on(dom.byId("chat_hubs_tab"), "click", function() {
 				domClass.add(this, "active");
 				domClass.remove(dom.byId("chat_users_tab"), "active");
+				domClass.remove(dom.byId("chat_settings_tab"), "active");
+
 				domStyle.set(dom.byId("chat_users"), {display: "none"});
 				domStyle.set(dom.byId("chat_hubs"), {display: "block"});
+				domStyle.set(dom.byId("chat_settings"), {display: "none"});
+			});
+			on(dom.byId("chat_settings_tab"), "click", function() {
+				domClass.add(this, "active");
+				domClass.remove(dom.byId("chat_users_tab"), "active");
+				domClass.remove(dom.byId("chat_hubs_tab"), "active");
+
+				domStyle.set(dom.byId("chat_users"), {display: "none"});
+				domStyle.set(dom.byId("chat_hubs"), {display: "none"});
+				domStyle.set(dom.byId("chat_settings"), {display: "block"});
+			});
+		},
+		init_settings: function() {
+			on(dom.byId("settings_revert_chat_order"), "change", function(evt) {
+				revert_chat_order = this.checked;
+				if (this.checked) {
+					query(".input-row").style({
+						order: "2",
+						"-webkit-order": "2",
+						"-ms-flex-order": "2"
+					})
+					query(".chat-messages").style({
+						order: "1",
+						"-webkit-order": "1",
+						"-ms-flex-order": "1"
+					})
+				} else {
+					query(".input-row").style({
+						order: "1",
+						"-webkit-order": "1",
+						"-ms-flex-order": "1"
+					})
+					query(".chat-messages").style({
+						order: "2",
+						"-webkit-order": "2",
+						"-ms-flex-order": "2"
+					})
+				}
+				chat_ws.close();
 			});
 		},
 		websocket_init: function () {
@@ -112,9 +161,12 @@ define([
 			} else if (data.type=="last_messages") {
 				if (fist_update) {
 					for (var i=0; i<data.messages.length; i++) {
-						domConstruct.place(self.create_new_message(data.messages[i]), self.chat_table, "last");
+						domConstruct.place(self.create_new_message(data.messages[i]), self.chat_table, revert_chat_order ? "first" : "last");
 					}
 					fist_update==false;
+					if (revert_chat_order) {
+						dom.byId("chat_messages").scrollTop = 30000;
+					}
 				}
 			} else if (data.type=="all_hubs") {
 				console.log("all_hubs");
@@ -142,11 +194,22 @@ define([
 				
 			} else if (data.type=="new_message") { 
 				console.log("new_message");
+				var after_scroll = false;
+				if (revert_chat_order && dom.byId("chat_messages").scrollHeight == dom.byId("chat_messages").scrollTop+dom.byId("chat_messages").clientHeight) {
+					after_scroll = true;
+				}
 				if (self.chat_table.firstChild!=null) {
-					domConstruct.place(self.create_new_message(data.message), self.chat_table, "first");
+					domConstruct.place(self.create_new_message(data.message), self.chat_table, revert_chat_order ? "last" : "first");
 				}
 				if (self.chat_table.childNodes.length > 150) {
-					domConstruct.destroy(self.chat_table.lastChild);
+					if (revert_chat_order) {
+						domConstruct.destroy(self.chat_table.firstChild);
+					} else {
+						domConstruct.destroy(self.chat_table.lastChild);
+					}
+				}
+				if (after_scroll) {
+					dom.byId("chat_messages").scrollTop = 30000;
 				}
 			} else if (data.type=="delete_message") { 
 				console.log("delete_message");
@@ -212,7 +275,7 @@ define([
 				moder_tools: moder_tools,
 				datetime: message.datetime,
 				user_id: message.user.id,
-				format_datetime: locale.format(new Date(message.datetime),{ formatLength: "short"})
+				format_datetime: locale.format(stamp.fromISOString(message.datetime),{ formatLength: "short"})
 			}));
 			return message;
 		},
