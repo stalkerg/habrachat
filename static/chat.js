@@ -123,6 +123,7 @@ define([
 						"-ms-flex-order": "2"
 					})
 				}
+				change_hub = true;
 				chat_ws.close();
 			});
 		},
