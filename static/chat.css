@@ -184,7 +184,7 @@ button {
 }
 
 .input-row {
-	height: 100px;
+	/*height: 100px;*/
 
 	padding: 10px;
 
@@ -450,7 +450,8 @@ button {
 }
 
 #tags_help {
-	display: inline-block;
+	display: block;
+	padding-top: 10px; 
 }
 
 #tags_help button {
