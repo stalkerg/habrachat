@@ -144,7 +144,7 @@ define([
 				
 			}
 		},
-		apple_revert_chat_order: function(){
+		apple_revert_chat_order: function(revert_message){
 			var self = this;
 			if (revert_chat_order) {
 				query(".input-row").style({
@@ -169,10 +169,12 @@ define([
 					"-ms-flex-order": "2"
 				})
 			}
-			var lines = dojo.query("#chat_table tr").reverse();
-			lines.forEach(function(element){
-				domConstruct.place(element, self.chat_table, "last");
-			});
+			if (revert_message==null) {
+				var lines = dojo.query("#chat_table tr").reverse();
+				lines.forEach(function(element){
+					domConstruct.place(element, self.chat_table, "last");
+				});
+			}
 			if (revert_chat_order) {
 				dom.byId("chat_messages").scrollTop = 30000;
 			} else {
@@ -193,8 +195,9 @@ define([
 			if (my_user.settings != null) {
 				if (my_user.settings.revert_chat_order != null) {
 					revert_chat_order = my_user.settings.revert_chat_order;
+					//console.log(revert_chat_order)
 					dom.byId("settings_revert_chat_order").checked = revert_chat_order;
-					this.apple_revert_chat_order();
+					this.apple_revert_chat_order(true);
 				}
 			}
 		},

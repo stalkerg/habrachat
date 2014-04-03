@@ -294,7 +294,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		elif message["type"] == "settings":
 			my_user = mp_users[self]
 			settings = message.get("settings", {})
-			if settings.get("revert_chat_order"):
+			if settings.get("revert_chat_order") != None:
 				my_user["settings"]["revert_chat_order"] = settings.get("revert_chat_order", False)
 
 			yield tornado.gen.Task(self.redis.set, mp_cookies[self],  json_encode(my_user))
