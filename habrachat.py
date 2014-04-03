@@ -208,6 +208,10 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			if len(new_message_text) > 2000:
 				return
 
+			if new_message_text.strip() == "/logout":
+				self.write_message(json_encode({"type": "logout"}))
+				return
+
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({
@@ -383,6 +387,10 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
 		
+		old_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
+		if old_user:
+			old_user = json_decode(old_user)
+			new_user["settings"] = old_user["settings"]
 		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(new_user))
 		self.redirect("/")
 

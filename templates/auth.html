@@ -36,14 +36,18 @@
 			#uLogin {
 				text-align: center;
 			}
+			.desc {
+				text-align: center;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="title">
 			<h1>Хабрачат</h1>
-			<h3>Авторизуйся, чтобы войти.</h3>
-			<div id="uLogin" data-ulogin="display=panel;fields=first_name,last_name,photo;providers=vkontakte,facebook,googleplus,yandex;hidden=other;redirect_uri={{ url_escape(options.auth_url) }}"></div>
+			<h3>Вход ниже <span class="glyphicon glyphicon-arrow-down"></span></h3>
+			<div id="uLogin" data-ulogin="display=panel;fields=nickname,first_name,last_name,photo;providers=vkontakte,facebook,googleplus,yandex;hidden=other;redirect_uri={{ url_escape(options.auth_url) }}"></div>
 			<script src="//ulogin.ru/js/ulogin.js"></script>
+			<div class="desc">Мы не храним личной информации, а в куках только идентификатор сессии. </div>
 		</div>
 	</body>
 </html>

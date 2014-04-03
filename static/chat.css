@@ -333,11 +333,11 @@ button {
 
 .users {
 	padding-top: 10px;
-	text-align: center;
+	text-align: left;
 
 }
 
-.users .caption {
+/*.users .caption {
 	text-align: center;
 	position: absolute;
 	bottom: 0;
@@ -363,6 +363,15 @@ button {
 
 .users .thumbnail .h3 {
 	margin: 0;
+}*/
+
+.users li {
+	cursor: pointer;
+}
+
+.users img {
+	max-height: 32px;
+	max-width:  32px;
 }
 
 .hubs {
@@ -422,6 +431,7 @@ button {
 .chat-messages table tr td:first-child {
 	vertical-align: middle;
 	cursor: pointer;
+	text-align: left;
 }
 
 .chat-messages table tr td:nth-child(2) {

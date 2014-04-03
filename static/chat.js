@@ -233,7 +233,11 @@ define([
 						current_hub = my_user.hub;
 						self.parse_settings();
 					}
-					domConstruct.place(self.create_new_user(data.users[i]), self.chat_users, "last");
+					var new_user_dom = self.create_new_user(data.users[i])
+					domConstruct.place(new_user_dom, self.chat_users, "last");
+					if (data.users[i].iam != null) {
+						domClass.add(new_user_dom, "list-group-item-info");
+					}
 				}
 			} else if (data.type=="last_messages") {
 				if (fist_update) {
@@ -298,6 +302,8 @@ define([
 					}
 				});
 				
+			} else if (data.type=="logout") {
+				window.location.href = "/logout";
 			}
 		},
 		lock_ui: function (text) {
