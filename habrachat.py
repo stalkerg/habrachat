@@ -41,12 +41,12 @@ define("max_save_messages", default=1499, help="Max save messages in redis")
 define("max_start_messages", default=149, help="Max messages for send after init socket")
 define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
-define("port", default=8888, help="Server port")
 define("hostname", default="localhost", help="Server port")
 define("subprocess", default=1, help="Num of subprocess")
 
 
 mp_users = dict() #Users for this instans
+mp_cookies = dict()
 mp_hubs = dict()
 templates = dict()
 remote_users = dict()
@@ -121,6 +121,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				self.close()
 				return
 
+
 			habrachat_user["last_event_time"] = datetime.datetime.now(current_zone).strftime("%Y-%m-%dT%H:%M:%S%z")
 			habrachat_user["hub"] = hub
 			habrachat_user["session_id"] = _session_id()
@@ -154,6 +155,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			log.info("%s WebSocket opened by %s for hub:%s session_id:%s"%(self.subscriber.instance_id, habrachat_user["name"], hub, habrachat_user["session_id"]))
 			
 			mp_users[self] = habrachat_user
+			mp_cookies[self] = habrachat_cookie
 			
 			#Create uniq user list
 			uniq_users = dict()
@@ -285,6 +287,13 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		#		sockets.write_message(json_encode({"type":"active_chat_window", "user_id":my_user["id"]}))
 		elif message["type"] == "all_hubs":
 			self.write_message({"type":"all_hubs", "hubs":[_hub for _hub in mp_hubs.itervalues()]})
+		elif message["type"] == "settings":
+			my_user = mp_users[self]
+			settings = message.get("settings", {})
+			if settings.get("revert_chat_order"):
+				my_user["settings"]["revert_chat_order"] = settings.get("revert_chat_order", False)
+
+			yield tornado.gen.Task(self.redis.set, mp_cookies[self],  json_encode(my_user))
 	
 	@gen.coroutine
 	def on_close(self):
@@ -294,6 +303,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			hub = mp_users[self]["hub"]
 			session_id = mp_users[self]["session_id"]
 			del mp_users[self]
+			del mp_cookies[self]
 			
 			my_realnew_user = [user for sockets, user in mp_users.items() if my_id == user["id"] and hub == user["hub"]]
 			if not my_realnew_user:
@@ -361,7 +371,9 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			log.error("Not have indentity! json: %s"%json_response)
 		log.info("New user indetity: %s"%identity)
 		user_id = hashlib.md5(identity).hexdigest()
-		new_user = {"id": user_id, "name": None}
+		new_user = {"id": user_id, "name": None, "settings":{
+			"revert_chat_order": False
+		}}
 		if "nickname" in json_response:
 			new_user["name"] = json_response.get("nickname").encode('UTF-8')
 		if not new_user["name"] and "first_name" in json_response:

@@ -111,33 +111,14 @@ define([
 			});
 		},
 		init_settings: function() {
+			var self = this;
 			on(dom.byId("settings_revert_chat_order"), "change", function(evt) {
 				revert_chat_order = this.checked;
-				if (this.checked) {
-					query(".input-row").style({
-						order: "2",
-						"-webkit-order": "2",
-						"-ms-flex-order": "2"
-					})
-					query(".chat-messages").style({
-						order: "1",
-						"-webkit-order": "1",
-						"-ms-flex-order": "1"
-					})
-				} else {
-					query(".input-row").style({
-						order: "1",
-						"-webkit-order": "1",
-						"-ms-flex-order": "1"
-					})
-					query(".chat-messages").style({
-						order: "2",
-						"-webkit-order": "2",
-						"-ms-flex-order": "2"
-					})
-				}
-				change_hub = true;
-				chat_ws.close();
+				self.apple_revert_chat_order();
+				self.send_settings();
+				
+				//change_hub = true;
+				//chat_ws.close();
 			});
 
 			var tags = {
@@ -161,6 +142,60 @@ define([
 				});
 				domConstruct.place(tag_node, tags_help, "last");
 				
+			}
+		},
+		apple_revert_chat_order: function(){
+			var self = this;
+			if (revert_chat_order) {
+				query(".input-row").style({
+					order: "2",
+					"-webkit-order": "2",
+					"-ms-flex-order": "2"
+				})
+				query(".chat-messages").style({
+					order: "1",
+					"-webkit-order": "1",
+					"-ms-flex-order": "1"
+				})
+			} else {
+				query(".input-row").style({
+					order: "1",
+					"-webkit-order": "1",
+					"-ms-flex-order": "1"
+				})
+				query(".chat-messages").style({
+					order: "2",
+					"-webkit-order": "2",
+					"-ms-flex-order": "2"
+				})
+			}
+			var lines = dojo.query("#chat_table tr").reverse();
+			lines.forEach(function(element){
+				domConstruct.place(element, self.chat_table, "last");
+			});
+			if (revert_chat_order) {
+				dom.byId("chat_messages").scrollTop = 30000;
+			} else {
+				dom.byId("chat_messages").scrollTop = 0;
+			}
+		},
+		send_settings: function() {
+			if (chat_ws.readyState == WebSocket.OPEN) {
+				chat_ws.send(JSON.stringify({
+					type:"settings",
+					settings: {
+						"revert_chat_order": revert_chat_order
+					}
+				}));
+			}
+		},
+		parse_settings: function() {
+			if (my_user.settings != null) {
+				if (my_user.settings.revert_chat_order != null) {
+					revert_chat_order = my_user.settings.revert_chat_order;
+					dom.byId("settings_revert_chat_order").checked = revert_chat_order;
+					this.apple_revert_chat_order();
+				}
 			}
 		},
 		websocket_init: function () {
@@ -196,6 +231,7 @@ define([
 					if (data.users[i].iam != null) {
 						my_user = data.users[i];
 						current_hub = my_user.hub;
+						self.parse_settings();
 					}
 					domConstruct.place(self.create_new_user(data.users[i]), self.chat_users, "last");
 				}
@@ -206,7 +242,9 @@ define([
 					}
 					fist_update==false;
 					if (revert_chat_order) {
-						dom.byId("chat_messages").scrollTop = 30000;
+						setTimeout(function() {
+							dom.byId("chat_messages").scrollTop = 30000;
+						}, 200);
 					}
 				}
 			} else if (data.type=="all_hubs") {
