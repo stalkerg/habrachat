@@ -406,7 +406,7 @@ class MainHandler(tornado.web.RequestHandler, BaseHandler):
 		if habrachat_user:
 			self.write(templates["chat"])
 		else:
-			self.write(templates["auth"])
+			self.write(templates["auth"].generate(options = options, request = self.request))
 		self.finish()
 
 class LogoutHandler(tornado.web.RequestHandler):
@@ -567,7 +567,7 @@ if __name__ ==  "__main__":
 
 	loader = template.Loader(options.template_root)
 	application.settings["loader"] = loader
-	templates["auth"] =  loader.load("auth.html").generate(options = options)
+	templates["auth"] =  loader.load("auth.html")
 	templates["chat"] =  loader.load("chat.html").generate(options = options)
 
 	application.settings["redis"] = tornadoredis.Client()
