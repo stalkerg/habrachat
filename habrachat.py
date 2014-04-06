@@ -3,19 +3,23 @@
 
 import os
 import sys
-from itertools import ifilter
+
+import six
+
+if six.PY2:
+	from itertools import ifilter as filter
 
 import tornado.web
 import tornado.websocket
 import tornado.ioloop
 import tornado.httpserver
 import tornado.options
+from tornado.escape import utf8, to_unicode, recursive_unicode
 from tornado import template
 from tornado.options import define, options
 from tornado import  gen, httpclient
 
 import json
-from sha import sha as sha1
 import hashlib
 
 from base64 import b64encode
@@ -74,20 +78,21 @@ except ImportError:
 		)
 		# NB: nothing against second parameter to b64encode, but it seems
 		#     to be slower than simple chained replacement
-		raw_id = b64encode(sha1(id_str).digest())
+		raw_id = b64encode(hashlib.sha1(id_str).digest())
 		return raw_id.replace('+', '-').replace('/', '_').rstrip('=')
 
 def json_encode(value, default=None):
 	return json.dumps(value, default=default).replace("</", "<\\/")
 
+
 def have_remote_users(id, hub):
-	for user in remote_users.itervalues():
+	for user in six.itervalues(remote_users):
 		 if user["id"] == id and user["hub"] == hub:
 		 	return True
 	return False
 
 def have_local_users(id, hub):
-	for user in mp_users.itervalues():
+	for user in six.itervalues(mp_users):
 		 if user["id"] == id and user["hub"] == hub:
 		 	return True
 	return False
@@ -135,14 +140,14 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			})
 			#log.info("User id:%s"%habrachat_user["id"] )
 			#Checks for the user in the chat
-			my_realnew_user = [user for user in mp_users.itervalues() if habrachat_user["id"] == user["id"] and hub == user["hub"]]
+			my_realnew_user = [user for user in six.itervalues(mp_users) if habrachat_user["id"] == user["id"] and hub == user["hub"]]
 			#log.info(remote_users)
 
 			if not my_realnew_user:
 				my_realnew_user = have_remote_users(habrachat_user["id"], habrachat_user["hub"])
 
 			if not my_realnew_user: #Send about new user to all users
-				for sockets, user in ifilter(lambda (s, u): habrachat_user["id"] != u["id"] and hub == u["hub"], mp_users.iteritems()):
+				for sockets, user in filter(lambda s, u: habrachat_user["id"] != u["id"] and hub == u["hub"], six.iteritems(mp_users)):
 					sockets.write_message(new_user_message)
 			
 			#Send new users to other instance
@@ -159,24 +164,21 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			
 			#Create uniq user list
 			uniq_users = dict()
-			for user in mp_users.itervalues():
+			for user in six.itervalues(mp_users):
 				if hub==user["hub"]:
 					uniq_users[user["id"]] = dict(user)
 					if user["id"]==habrachat_user["id"]:
 						uniq_users[user["id"]]["iam"] = True
-
 			#and from remote users
-			for user in remote_users.itervalues():
+			for user in six.itervalues(remote_users):
 				if hub==user["hub"] and user["id"] not in uniq_users:
 					uniq_users[user["id"]] = dict(user)
 
 			#Send all uniq user to new user			
-			self.write_message({"type":"all_users", "users":uniq_users.values()})
-
+			self.write_message({"type":"all_users", "users":list(uniq_users.values())})
 			#Send all hubs
 			mp_hubs[hub]["users"] = len(uniq_users)
-			self.write_message({"type":"all_hubs", "hubs":mp_hubs.values()})
-
+			self.write_message({"type":"all_hubs", "hubs":list(mp_hubs.values())})
 			#Send all last messages
 			last_messages = yield tornado.gen.Task(self.redis.lrange, "hub_"+hub, 0, options.max_start_messages)
 			self.write_message({"type":"last_messages", "messages":[
@@ -244,7 +246,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				}
 			})
 			
-			for sockets, user in mp_users.iteritems():
+			for sockets, user in six.iteritems(mp_users):
 				if my_user["hub"] == user["hub"]:
 					sockets.write_message(new_message)
 
@@ -277,9 +279,10 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					"user_id": message["user_id"], 
 					"datetime": message["datetime"]
 				})
-				for sockets, user in mp_users.iteritems():
+				for sockets, user in six.iteritems(mp_users):
 					if my_user["hub"] == user["hub"]:
 						sockets.write_message(new_message)
+
 				#Send about delete to other instance
 				yield tornado.gen.Task(self.redis.publish, "new_messages", new_message)
 			else:
@@ -290,7 +293,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		#	for sockets, user in mp_users.items():
 		#		sockets.write_message(json_encode({"type":"active_chat_window", "user_id":my_user["id"]}))
 		elif message["type"] == "all_hubs":
-			self.write_message({"type":"all_hubs", "hubs":[_hub for _hub in mp_hubs.itervalues()]})
+			self.write_message({"type":"all_hubs", "hubs":[_hub for _hub in six.itervalues(mp_hubs)]})
 		elif message["type"] == "settings":
 			my_user = mp_users[self]
 			settings = message.get("settings", {})
@@ -374,7 +377,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 		if not identity:
 			log.error("Not have indentity! json: %s"%json_response)
 		log.info("New user indetity: %s"%identity)
-		user_id = hashlib.md5(identity).hexdigest()
+		user_id = hashlib.md5(utf8(identity)).hexdigest()
 		new_user = {"id": user_id, "name": None, "settings":{
 			"revert_chat_order": False
 		}}
@@ -391,7 +394,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 		if old_user:
 			old_user = json_decode(old_user)
 			new_user["settings"] = old_user["settings"]
-		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(new_user))
+		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
 		self.redirect("/")
 
 
@@ -458,7 +461,7 @@ class Subscriber(object):
 				self.send_client.publish("new_messages", json_encode({
 					"type":"all_users_sub", 
 					"instance_id": self.instance_id,
-					"users": mp_users.values()
+					"users": list(mp_users.values())
 				}))
 				return
 			elif chat_message["type"] == "all_users_sub":
@@ -473,9 +476,10 @@ class Subscriber(object):
 							"hub": new_user["hub"], #dublicate for simple
 							"user": new_user
 						})
-						for sockets, user in mp_users.iteritems():
+						for sockets, user in six.iteritems(mp_users):
 							if new_user["hub"] == user["hub"]:
 								sockets.write_message(new_user_message)
+
 				return
 			elif chat_message["type"] == "new_user":
 				#log.info("%s New remote user with session_id: %s and id:%s"%(self.instance_id, chat_message["user"]["session_id"], chat_message["user"]["id"]))
@@ -507,7 +511,7 @@ class Subscriber(object):
 				return
 				
 
-			for sockets, user in mp_users.iteritems():
+			for sockets, user in six.iteritems(mp_users):
 				if chat_message["hub"] == user["hub"]:
 					try:
 						sockets.write_message(message.body)

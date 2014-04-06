@@ -7,3 +7,4 @@ setproctitle
 lockfile
 python-daemon
 postmarkup
+six
