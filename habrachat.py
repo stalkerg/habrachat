@@ -14,6 +14,7 @@ import tornado.websocket
 import tornado.ioloop
 import tornado.httpserver
 import tornado.options
+import tornado.auth
 from tornado.escape import utf8, to_unicode, recursive_unicode
 from tornado import template
 from tornado.options import define, options
@@ -45,8 +46,9 @@ define("max_save_messages", default=1499, help="Max save messages in redis")
 define("max_start_messages", default=149, help="Max messages for send after init socket")
 define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
-define("hostname", default="localhost", help="Server port")
+define("hostname", default="localhost", help="Server host")
 define("subprocess", default=1, help="Num of subprocess")
+define("google_oauth", default={"key":"", "secret":""}, help="google oauth")
 
 
 mp_users = dict() #Users for this instans
@@ -173,6 +175,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			for user in six.itervalues(remote_users):
 				if hub==user["hub"] and user["id"] not in uniq_users:
 					uniq_users[user["id"]] = dict(user)
+
 
 			#Send all uniq user to new user			
 			self.write_message({"type":"all_users", "users":list(uniq_users.values())})
@@ -338,7 +341,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 
 			
 
-class AuthHandler(tornado.web.RequestHandler, BaseHandler):
+class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOAuth2Mixin):
 	@gen.coroutine
 	def post(self):
 		habrachat_cookie = self.get_cookie("habrachat")
@@ -353,7 +356,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 			return
 		client = httpclient.AsyncHTTPClient()
 		response = yield client.fetch(
-			"http://u-login.com/token.php?token=%s&host=%s" % (token, options.hostname), 
+			"http://u-login.com/token.php?token=%s&host=%s://%s" % (token, self.request.protocol, self.request.host), 
 			use_gzip=True
 		)
 		if response.code != 200:
@@ -386,7 +389,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 		if not new_user["name"] and "first_name" in json_response:
 			new_user["name"] = json_response.get("first_name").encode('UTF-8')
 
-		new_user["name"] = new_user["name"][:20]
+		new_user["name"] = new_user["name"][:20].replace("[", "{").replace("]", "}")
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
 		
@@ -397,7 +400,63 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler):
 		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
 		self.redirect("/")
 
+	
 
+
+class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOAuth2Mixin):
+	@tornado.gen.coroutine
+	def get(self):
+		if self.get_argument('code', False):
+			token = yield self.get_authenticated_user(
+				redirect_uri='%s://%s/google_auth'%(self.request.protocol, self.request.host),
+				code=self.get_argument('code'))
+
+			client = httpclient.AsyncHTTPClient()
+			response = yield client.fetch(
+				"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=%s" % (token["access_token"]), 
+				use_gzip=True
+			)
+			if response.code != 200:
+				log.warning("Not have access to google")
+				self.finish()
+				return
+
+			user = json_decode(response.body)
+
+			habrachat_cookie = self.get_cookie("habrachat")
+			if not habrachat_cookie:
+				habrachat_cookie = _session_id()
+				self.set_cookie("habrachat", habrachat_cookie)
+			identity = user.get("link")
+			if not identity:
+				log.error("Not have indentity! json: %s"%user)
+			log.info("New user indetity: %s"%identity)
+			user_id = hashlib.md5(utf8(identity)).hexdigest()
+			new_user = {"id": user_id, "name": None, "settings":{
+				"revert_chat_order": False
+			}}
+			if "username" in user:
+				new_user["name"] = user.get("username").encode('UTF-8')
+			if not new_user["name"] and "name" in user:
+				new_user["name"] = user.get("name").encode('UTF-8')
+
+			new_user["name"] = new_user["name"][:20].replace("[", "{").replace("]", "}")
+			new_user["avatar"] = user.get("picture", "")
+			new_user["ismoderator"] = identity in options.moderators
+			
+			old_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
+			if old_user:
+				old_user = json_decode(old_user)
+				new_user["settings"] = old_user["settings"]
+			yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
+			self.redirect("/")
+		else:
+			yield self.authorize_redirect(
+				redirect_uri='%s://%s/google_auth'%(self.request.protocol, self.request.host),
+				client_id=self.settings['google_oauth']['key'],
+				scope=['profile', 'email'],
+				response_type='code',
+				extra_params={'approval_prompt': 'auto'})
 
 class MainHandler(tornado.web.RequestHandler, BaseHandler):
 	@gen.coroutine
@@ -525,6 +584,7 @@ def init_subscribe():
 application = tornado.web.Application([
 	(r'/start-chat', ChatHandler),
 	(r'/auth', AuthHandler),
+	(r'/google_auth', GoogleLoginHandler),
 	(r'/logout', LogoutHandler),
 	(r"/static/(.*)", tornado.web.StaticFileHandler, {"path": options.static_root}),
 	(r'/', MainHandler)
@@ -574,6 +634,7 @@ if __name__ ==  "__main__":
 	templates["auth"] =  loader.load("auth.html")
 	templates["chat"] =  loader.load("chat.html").generate(options = options)
 
+	application.settings["google_oauth"]  = options.google_oauth
 	application.settings["redis"] = tornadoredis.Client()
 	try:
 		application.settings["redis"].connect()
