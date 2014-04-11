@@ -149,8 +149,9 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				my_realnew_user = have_remote_users(habrachat_user["id"], habrachat_user["hub"])
 
 			if not my_realnew_user: #Send about new user to all users
-				for sockets, user in filter(lambda s, u: habrachat_user["id"] != u["id"] and hub == u["hub"], six.iteritems(mp_users)):
-					sockets.write_message(new_user_message)
+				for sockets, user in six.iteritems(mp_users):
+					if habrachat_user["id"] != user["id"] and hub == user["hub"]:
+						sockets.write_message(new_user_message)
 			
 			#Send new users to other instance
 			yield tornado.gen.Task(
