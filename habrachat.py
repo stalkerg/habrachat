@@ -128,6 +128,16 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				self.close()
 				return
 
+			habrachat_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+habrachat_user["id"])
+			if  habrachat_user_settings:
+				habrachat_user_settings = json_decode(habrachat_user_settings)
+			else:
+				habrachat_user_settings = {
+					"revert_chat_order": False,
+					"send_message_enter": False
+				}
+
+			habrachat_user["settings"] = habrachat_user_settings
 
 			habrachat_user["last_event_time"] = datetime.datetime.now(current_zone).strftime("%Y-%m-%dT%H:%M:%S%z")
 			habrachat_user["hub"] = hub
@@ -303,8 +313,10 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			settings = message.get("settings", {})
 			if settings.get("revert_chat_order") != None:
 				my_user["settings"]["revert_chat_order"] = settings.get("revert_chat_order", False)
+			if settings.get("send_message_enter") != None:
+				my_user["settings"]["send_message_enter"] = settings.get("send_message_enter", False)
 
-			yield tornado.gen.Task(self.redis.set, mp_cookies[self],  json_encode(my_user))
+			yield tornado.gen.Task(self.redis.set, "setting_"+my_user["id"],  json_encode(my_user["settings"]))
 	
 	@gen.coroutine
 	def on_close(self):
@@ -382,9 +394,8 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 			log.error("Not have indentity! json: %s"%json_response)
 		log.info("New user indetity: %s"%identity)
 		user_id = hashlib.md5(utf8(identity)).hexdigest()
-		new_user = {"id": user_id, "name": None, "settings":{
-			"revert_chat_order": False
-		}}
+		new_user = {"id": user_id, "name": None}
+		
 		if "nickname" in json_response:
 			new_user["name"] = json_response.get("nickname").encode('UTF-8')
 		if not new_user["name"] and "first_name" in json_response:
@@ -394,10 +405,13 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
 		
-		old_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
-		if old_user:
-			old_user = json_decode(old_user)
-			new_user["settings"] = old_user["settings"]
+		old_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+user_id)
+		if not old_user_settings:
+			new_user_settings = {
+				"revert_chat_order": False,
+				"send_message_enter": False
+			}
+			yield tornado.gen.Task(self.redis.set, "setting_"+user_id,  json_encode(recursive_unicode(new_user_settings)))
 		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
 		self.redirect("/")
 
@@ -433,9 +447,7 @@ class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.G
 				log.error("Not have indentity! json: %s"%user)
 			log.info("New user indetity: %s"%identity)
 			user_id = hashlib.md5(utf8(identity)).hexdigest()
-			new_user = {"id": user_id, "name": None, "settings":{
-				"revert_chat_order": False
-			}}
+			new_user = {"id": user_id, "name": None}
 			if "username" in user:
 				new_user["name"] = user.get("username").encode('UTF-8')
 			if not new_user["name"] and "name" in user:
@@ -445,10 +457,14 @@ class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.G
 			new_user["avatar"] = user.get("picture", "")
 			new_user["ismoderator"] = identity in options.moderators
 			
-			old_user = yield tornado.gen.Task(self.redis.get, habrachat_cookie)
-			if old_user:
-				old_user = json_decode(old_user)
-				new_user["settings"] = old_user["settings"]
+			old_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+user_id)
+			if not old_user_settings:
+				new_user_settings = {
+					"revert_chat_order": False,
+					"send_message_enter": False
+				}
+				yield tornado.gen.Task(self.redis.set, "setting_"+user_id,  json_encode(recursive_unicode(new_user_settings)))
+
 			yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
 			self.redirect("/")
 		else:

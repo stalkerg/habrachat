@@ -53,7 +53,8 @@ define([
 		current_hub = "",
 		current_hub_url = "",
 		change_hub = false,
-		revert_chat_order = false;
+		revert_chat_order = false,
+		send_message_enter = false;
 	return declare(null, {
 		constructor: function() {
 			var self = this;
@@ -68,8 +69,30 @@ define([
 			self.websocket_init();
 			on(dom.byId("chat_send_button"), "click", function(evt) {self.submit_message(evt)});
 			on(self.message_textarea, "keydown", function(evt) {
-				if (evt.ctrlKey && evt.keyCode == 13 && dom.byId("chat_send_button").disabled == false) {
-					self.submit_message(evt);
+				if (send_message_enter) {
+					if (evt.ctrlKey == false && evt.keyCode == 13 && dom.byId("chat_send_button").disabled == false) {
+						self.submit_message(evt);
+					} else if (evt.ctrlKey == false && evt.keyCode == 13 && dom.byId("chat_send_button").disabled == true) {
+						evt.preventDefault();
+						return false;
+					} else if (evt.ctrlKey == true && evt.keyCode == 13) {
+						var val = self.message_textarea.value;
+						if (typeof self.message_textarea.selectionStart == "number" && typeof self.message_textarea.selectionEnd == "number") {
+							var start = self.message_textarea.selectionStart;
+							self.message_textarea.value = val.slice(0, start) + "\n" + val.slice(self.message_textarea.selectionEnd);
+							self.message_textarea.selectionStart = self.message_textarea.selectionEnd = start + 1;
+						} else if (document.selection && document.selection.createRange) {
+							self.message_textarea.focus();
+							var range = document.selection.createRange();
+							range.text = "\r\n";
+							range.collapse(false);
+							range.select();
+						}
+					}
+				} else {
+					if (evt.ctrlKey && evt.keyCode == 13 && dom.byId("chat_send_button").disabled == false) {
+						self.submit_message(evt);
+					}
 				}
 			});
 
@@ -116,9 +139,11 @@ define([
 				revert_chat_order = this.checked;
 				self.apple_revert_chat_order();
 				self.send_settings();
-				
-				//change_hub = true;
-				//chat_ws.close();
+			});
+
+			on(dom.byId("settings_send_message_enter"), "change", function(evt) {
+				send_message_enter = this.checked;
+				self.send_settings();
 			});
 
 			var tags = {
@@ -186,7 +211,8 @@ define([
 				chat_ws.send(JSON.stringify({
 					type:"settings",
 					settings: {
-						"revert_chat_order": revert_chat_order
+						"revert_chat_order": revert_chat_order,
+						"send_message_enter": send_message_enter
 					}
 				}));
 			}
@@ -198,6 +224,11 @@ define([
 					//console.log(revert_chat_order)
 					dom.byId("settings_revert_chat_order").checked = revert_chat_order;
 					this.apple_revert_chat_order(true);
+				}
+				if (my_user.settings.send_message_enter != null) {
+					send_message_enter = my_user.settings.send_message_enter;
+					//console.log(revert_chat_order)
+					dom.byId("settings_send_message_enter").checked = send_message_enter;
 				}
 			}
 		},
@@ -361,7 +392,7 @@ define([
 
 			var message = domConstruct.toDom(string.substitute(message_template, {
 				name: message.user.name,
-				avatar: message.user.avatar,
+				avatar: message.user.avatar == null ? "" : message.user.avatar,
 				text: message.text,
 				tr_class: select_text,
 				moder_tools: moder_tools,
@@ -399,12 +430,13 @@ define([
 			}
 
 			evt.stopPropagation();
+			evt.preventDefault();
 			self.lock_ui("Ожидайте 7 секунд");
 			chat_ws.send(JSON.stringify({
 				type:"new_message", 
 				message:self.message_textarea.value
 			}));
-			self.message_textarea.value = '';
+			self.message_textarea.value = "";
 			setTimeout(function() {
 				self.unlock_ui();
 			}, 7000);
