@@ -6,16 +6,13 @@ import sys
 
 import six
 
-if six.PY2:
-	from itertools import ifilter as filter
-
 import tornado.web
 import tornado.websocket
 import tornado.ioloop
 import tornado.httpserver
 import tornado.options
 import tornado.auth
-from tornado.escape import utf8, to_unicode, recursive_unicode
+from tornado.escape import utf8,  recursive_unicode
 from tornado import template
 from tornado.options import define, options
 from tornado import  gen, httpclient
@@ -49,6 +46,10 @@ define("timezone", default='UTC', help="Server timezone")
 define("hostname", default="localhost", help="Server host")
 define("subprocess", default=1, help="Num of subprocess")
 define("google_oauth", default={"key":"", "secret":""}, help="google oauth")
+
+define("redis_password", default=None, help="Password for redis")
+define("redis_port", default=6379, help="Port for redis")
+define("redis_host", default="localhost", help="Host for redis")
 
 
 mp_users = dict() #Users for this instans
@@ -512,7 +513,7 @@ class Subscriber(object):
 		log.info("Subscribe init")
 		self.send_client = send_client
 		self.instance_id = _session_id()
-		self.sub_client = tornadoredis.Client()
+		self.sub_client = tornadoredis.Client(host=options.redis_host, port=options.redis_port, password=options.redis_password)
 		self.sub_client.connect()
 		self.sub_client.subscribe('new_messages', self.subscribe)
 		
@@ -615,21 +616,43 @@ def set_process_name(name):
 		pass # Ignore errors, since this is only cosmetic
 
 if __name__ ==  "__main__":
-	tornado.options.parse_config_file(sys.argv[1])
+	tornado_config_file = None
+	tornado_port = None
+	if "HEROKU" in os.environ:
+		tornado_config_file = "harbachat_heroku.conf"
+		tornado_port = int(os.environ.get("PORT", 5000))
+	else:
+		tornado_config_file = sys.argv[1]
+		tornado_port = int(sys.argv[2])
 
-	if len(sys.argv)==4 and sys.argv[3]=="daemon":
-		import lockfile, daemon
-		log_daemon = open("tornado.log", "a+")
-		ctx = daemon.DaemonContext(
-			stdout=log_daemon, 
-			stderr=log_daemon,
-			working_directory=".",
+	tornado.options.parse_config_file(tornado_config_file)
 
-			pidfile=lockfile.FileLock("/tmp/habrachat"+sys.argv[2]+".pid"))
-		ctx.open()
+	if "HEROKU" in os.environ:
+		try:
+			import urlparse
+		except:
+			import urllib.parse as urlparse
+		redis_url = os.environ.get("OPENREDIS_URL") or os.environ.get("REDISTOGO_URL")
+		url = urlparse.urlparse(redis_url)
+		options.redis_password = url.password
+		options.redis_host = url.hostname
+		options.redis_port = int(url.port)
+		options.google_oauth["key"] = os.environ.get("GOOGLE_OAUTH_KEY")
+		options.google_oauth["secret"] = os.environ.get("GOOGLE_OAUTH_SECRET")
+	else:
+		if len(sys.argv)==4 and sys.argv[3]=="daemon":
+			import lockfile, daemon
+			log_daemon = open("tornado.log", "a+")
+			ctx = daemon.DaemonContext(
+				stdout=log_daemon, 
+				stderr=log_daemon,
+				working_directory=".",
+
+				pidfile=lockfile.FileLock("/tmp/habrachat"+sys.argv[2]+".pid"))
+			ctx.open()
 	
 	server = tornado.httpserver.HTTPServer(application)
-	server.bind(int(sys.argv[2]))
+	server.bind(tornado_port)
 	set_process_name("habrachat")
 	
 	# start(0) starts a subprocess for each CPU core
@@ -652,7 +675,7 @@ if __name__ ==  "__main__":
 	templates["chat"] =  loader.load("chat.html").generate(options = options)
 
 	application.settings["google_oauth"]  = options.google_oauth
-	application.settings["redis"] = tornadoredis.Client()
+	application.settings["redis"] = tornadoredis.Client(host=options.redis_host, port=options.redis_port, password=options.redis_password)
 	try:
 		application.settings["redis"].connect()
 	except tornadoredis.ConnectionError:
