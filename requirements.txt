@@ -7,3 +7,4 @@ setproctitle
 lockfile
 postmarkup
 six
+newrelic
