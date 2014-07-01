@@ -531,6 +531,7 @@ class Subscriber(object):
 	def on_message(self, message):
 		if message.kind == "message":
 			chat_message = json_decode(message.body)
+			log.info("Get new message by Subscriber from instance:%s"%chat_message["instance_id"])
 			if chat_message["instance_id"] == self.instance_id:
 				return
 
