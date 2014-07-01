@@ -619,7 +619,7 @@ if __name__ ==  "__main__":
 	tornado_config_file = None
 	tornado_port = None
 	if "HEROKU" in os.environ:
-		tornado_config_file = "harbachat_heroku.conf"
+		tornado_config_file = "habrachat_heroku.conf"
 		tornado_port = int(os.environ.get("PORT", 5000))
 	else:
 		tornado_config_file = sys.argv[1]
