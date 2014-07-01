@@ -229,6 +229,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				self.write_message(json_encode({"type": "logout"}))
 				return
 
+			log.info("Start send new message")
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({
@@ -535,7 +536,7 @@ class Subscriber(object):
 			if chat_message["instance_id"] == self.instance_id:
 				return
 
-			#log.info("Message from %s to %s"%(chat_message["instance_id"], self.instance_id))
+			log.info("Message from %s to %s"%(chat_message["instance_id"], self.instance_id))
 			#log.info(message.body)
 			if chat_message["type"] == "get_all_users":
 				self.send_client.publish("new_messages", json_encode({
