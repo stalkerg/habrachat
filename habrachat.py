@@ -397,12 +397,14 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 		user_id = hashlib.md5(utf8(identity)).hexdigest()
 		new_user = {"id": user_id, "name": None}
 		
+		new_user_name = ""
 		if "nickname" in json_response:
-			new_user["name"] = json_response.get("nickname").encode('UTF-8')
+			new_user_name = json_response.get("nickname", "")
 		if not new_user["name"] and "first_name" in json_response:
-			new_user["name"] = json_response.get("first_name").encode('UTF-8')
+			new_user_name = json_response.get("first_name", "")
 
-		new_user["name"] = new_user["name"][:20].replace("[", "{").replace("]", "}")
+		new_user["name"] = new_user_name[:20].replace("[", "{").replace("]", "}").encode('UTF-8')
+
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
 		
