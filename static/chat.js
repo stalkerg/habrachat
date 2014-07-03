@@ -103,6 +103,8 @@ define([
 					}));
 				}
 			}, 1000*60);
+
+			setInterval(self.websocket_ping, 1000*25);
 		},
 		init_tabs: function() {
 			on(dom.byId("chat_users_tab"), "click", function() {
@@ -238,6 +240,11 @@ define([
 			chat_ws.onopen = function() { self.onopen(); };
 			chat_ws.onmessage = function(evt) { self.onmessage(evt); };
 			chat_ws.onclose = function(evt) { self.onmessage(evt); };
+		},
+		websocket_ping: function() {
+			if (chat_ws.readyState == WebSocket.OPEN) {
+				chat_ws.ping();
+			}
 		},
 		onopen: function() {
 			console.log("Open socket");
