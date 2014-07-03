@@ -41,6 +41,9 @@ define("auth_url", default="http://127.0.0.1:8888/auth", help="URL for ulogin au
 define("moderators", default=[], help="Moderators list")
 define("max_save_messages", default=1499, help="Max save messages in redis")
 define("max_start_messages", default=149, help="Max messages for send after init socket")
+
+define("ping_every", default=0, help="Ping clients every some time. 0 not ping.")
+
 define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
 define("hostname", default="localhost", help="Server host")
@@ -604,6 +607,14 @@ class Subscriber(object):
 def init_subscribe():
 	Subscriber(application.settings["redis"])
 
+def cleints_ping():
+	for sockets, user in six.iteritems(mp_users):
+		try:
+			sockets.ping()
+		except tornado.websocket.WebSocketClosedError:
+			pass
+	tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=options.ping_every), cleints_ping)
+
 application = tornado.web.Application([
 	(r'/start-chat', ChatHandler),
 	(r'/auth', AuthHandler),
@@ -688,4 +699,6 @@ if __name__ ==  "__main__":
 	else:
 		# Delayed initialization of settings
 		tornado.ioloop.IOLoop.instance().add_callback(init_subscribe)
+		if options.ping_every:
+			tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=options.ping_every), cleints_ping)
 		tornado.ioloop.IOLoop.instance().start()
