@@ -611,7 +611,7 @@ def cleints_ping():
 	log.info("Ping to %i users."%(len(mp_users)))
 	for sockets, user in six.iteritems(mp_users):
 		try:
-			sockets.ping()
+			sockets.ping("ping")
 		except tornado.websocket.WebSocketClosedError:
 			pass
 	tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=options.ping_every), cleints_ping)
