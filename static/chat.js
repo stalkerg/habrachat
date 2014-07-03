@@ -104,7 +104,9 @@ define([
 				}
 			}, 1000*60);
 
-			setInterval(self.websocket_ping, 1000*25);
+			setInterval(function() {
+				self.websocket_ping();
+			}, 1000*25);
 		},
 		init_tabs: function() {
 			on(dom.byId("chat_users_tab"), "click", function() {
