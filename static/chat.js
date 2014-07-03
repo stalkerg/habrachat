@@ -246,7 +246,9 @@ define([
 		websocket_ping: function() {
 			if (chat_ws.readyState == WebSocket.OPEN) {
 				console.log("Send ping");
-				chat_ws.ping();
+				chat_ws.send(JSON.stringify({
+					type:"ping"
+				}));
 			}
 		},
 		onopen: function() {

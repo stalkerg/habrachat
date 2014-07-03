@@ -608,6 +608,7 @@ def init_subscribe():
 	Subscriber(application.settings["redis"])
 
 def cleints_ping():
+	log.info("Ping to %i users."%(len(mp_users)))
 	for sockets, user in six.iteritems(mp_users):
 		try:
 			sockets.ping()
