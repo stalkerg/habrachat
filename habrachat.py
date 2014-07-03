@@ -700,6 +700,6 @@ if __name__ ==  "__main__":
 	else:
 		# Delayed initialization of settings
 		tornado.ioloop.IOLoop.instance().add_callback(init_subscribe)
-		if options.ping_every:
-			tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=options.ping_every), cleints_ping)
+		#if options.ping_every:
+		#	tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=options.ping_every), cleints_ping)
 		tornado.ioloop.IOLoop.instance().start()
