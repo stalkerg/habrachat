@@ -249,6 +249,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			response = yield tornado.gen.Task(pipe.execute) # Save message to Redis
 			if response[1] != "OK":
 				log.error(response)
+				return
 						
 			new_message = json_encode({
 				"type": "new_message", 
