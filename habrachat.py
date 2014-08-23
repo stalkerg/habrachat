@@ -48,14 +48,14 @@ define("hubs", default=[], help="List of hubs")
 define("timezone", default='UTC', help="Server timezone")
 define("hostname", default="localhost", help="Server host")
 define("subprocess", default=1, help="Num of subprocess")
-define("google_oauth", default={"key":"", "secret":""}, help="google oauth")
+define("google_oauth", default={"key": "", "secret": ""}, help="google oauth")
 
 define("redis_password", default=None, help="Password for redis")
 define("redis_port", default=6379, help="Port for redis")
 define("redis_host", default="localhost", help="Host for redis")
 
 
-mp_users = dict() #Users for this instans
+mp_users = dict()  # Users for this instans
 mp_cookies = dict()
 mp_hubs = dict()
 templates = dict()
@@ -87,26 +87,30 @@ except ImportError:
 		raw_id = b64encode(hashlib.sha1(id_str).digest())
 		return raw_id.replace('+', '-').replace('/', '_').rstrip('=')
 
+
 def json_encode(value, default=None):
 	return json.dumps(value, default=default).replace("</", "<\\/")
 
 
 def have_remote_users(id, hub):
 	for user in six.itervalues(remote_users):
-		 if user["id"] == id and user["hub"] == hub:
-		 	return True
+		if user["id"] == id and user["hub"] == hub:
+			return True
 	return False
+
 
 def have_local_users(id, hub):
 	for user in six.itervalues(mp_users):
-		 if user["id"] == id and user["hub"] == hub:
-		 	return True
+		if user["id"] == id and user["hub"] == hub:
+			return True
 	return False
+
 
 class BaseHandler(object):
 	@property
 	def redis(self):
 		return self.settings['redis']
+
 
 class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 	def __init__(self, *args, **kwargs):
@@ -133,7 +137,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 				return
 
 			habrachat_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+habrachat_user["id"])
-			if  habrachat_user_settings:
+			if habrachat_user_settings:
 				habrachat_user_settings = json_decode(habrachat_user_settings)
 			else:
 				habrachat_user_settings = {
@@ -151,7 +155,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			new_user_message = json_encode({
 				"type": "new_user",
 				"instance_id": self.subscriber.instance_id,
-				"hub": hub, #dublicate for simple
+				"hub": hub,  # dublicate for simple
 				"user": habrachat_user
 			})
 			#log.info("User id:%s"%habrachat_user["id"] )
@@ -162,51 +166,54 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			if not my_realnew_user:
 				my_realnew_user = have_remote_users(habrachat_user["id"], habrachat_user["hub"])
 
-			if not my_realnew_user: #Send about new user to all users
+			if not my_realnew_user:  # Send about new user to all users
 				for sockets, user in six.iteritems(mp_users):
 					if habrachat_user["id"] != user["id"] and hub == user["hub"]:
 						sockets.write_message(new_user_message)
-			
+
 			#Send new users to other instance
 			yield tornado.gen.Task(
-				self.redis.publish, 
-				"new_messages", 
+				self.redis.publish,
+				"new_messages",
 				new_user_message
 			)
 
-			log.info("%s WebSocket opened by %s for hub:%s session_id:%s"%(self.subscriber.instance_id, habrachat_user["name"], hub, habrachat_user["session_id"]))
-			
+			log.info("%s WebSocket opened by %s for hub:%s session_id:%s" % (
+				self.subscriber.instance_id,
+				habrachat_user["name"],
+				hub,
+				habrachat_user["session_id"]
+			))
+
 			mp_users[self] = habrachat_user
 			mp_cookies[self] = habrachat_cookie
-			
+
 			#Create uniq user list
 			uniq_users = dict()
 			for user in six.itervalues(mp_users):
-				if hub==user["hub"]:
+				if hub == user["hub"]:
 					uniq_users[user["id"]] = dict(user)
-					if user["id"]==habrachat_user["id"]:
+					if user["id"] == habrachat_user["id"]:
 						uniq_users[user["id"]]["iam"] = True
 			#and from remote users
 			for user in six.itervalues(remote_users):
-				if hub==user["hub"] and user["id"] not in uniq_users:
+				if hub == user["hub"] and user["id"] not in uniq_users:
 					uniq_users[user["id"]] = dict(user)
 
-
-			#Send all uniq user to new user			
-			self.write_message({"type":"all_users", "users":list(uniq_users.values())})
+			#Send all uniq user to new user
+			self.write_message({"type": "all_users", "users": list(uniq_users.values())})
 			#Send all hubs
 			mp_hubs[hub]["users"] = len(uniq_users)
-			self.write_message({"type":"all_hubs", "hubs":list(mp_hubs.values())})
+			self.write_message({"type": "all_hubs", "hubs": list(mp_hubs.values())})
 			#Send all last messages
 			last_messages = yield tornado.gen.Task(self.redis.lrange, "hub_"+hub, 0, options.max_start_messages)
-			self.write_message({"type":"last_messages", "messages":[
+			self.write_message({"type": "last_messages", "messages": [
 				json_decode(message) for message in last_messages
 			]})
 		else:
 			log.info("Not login user")
 			self.close()
-		
-		
+
 	@gen.coroutine
 	def on_message(self, message):
 		message = json_decode(message)
@@ -236,23 +243,23 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 			pipe = self.redis.pipeline()
 
 			pipe.lpush("hub_"+my_user["hub"], json_encode({
-				"user_id":my_user["id"],
-				"datetime":my_user["last_event_time"],
+				"user_id": my_user["id"],
+				"datetime": my_user["last_event_time"],
 				"text": new_message_text,
 				"user": {
-					"id":my_user["id"],
+					"id": my_user["id"],
 					"name": my_user["name"],
-					"avatar":my_user["avatar"]
+					"avatar": my_user["avatar"]
 				}
 			}))
 			pipe.ltrim("hub_"+my_user["hub"], 0, options.max_save_messages)
-			response = yield tornado.gen.Task(pipe.execute) # Save message to Redis
+			response = yield tornado.gen.Task(pipe.execute)  # Save message to Redis
 			if response[1] != "OK":
 				log.error(response)
 				return
-						
+
 			new_message = json_encode({
-				"type": "new_message", 
+				"type": "new_message",
 				"instance_id": self.subscriber.instance_id,
 				"hub": my_user["hub"],
 				"message": {
@@ -265,7 +272,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					"datetime": my_user["last_event_time"]
 				}
 			})
-			
+
 			for sockets, user in six.iteritems(mp_users):
 				if my_user["hub"] == user["hub"]:
 					sockets.write_message(new_message)
@@ -275,7 +282,7 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 
 		elif message["type"] == "delete_message":
 			my_user = mp_users[self]
-			
+
 			if my_user["ismoderator"]:
 				message_for_delete = None
 				redis_messages = yield tornado.gen.Task(self.redis.lrange, "hub_"+my_user["hub"], 0, options.max_save_messages)
@@ -291,12 +298,12 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 					yield tornado.gen.Task(self.redis.lrem, key="hub_"+my_user["hub"],  num=-1, value=message_for_delete)
 				else:
 					log.warning("Message for delete not found!")
-				
+
 				new_message = json_encode({
-					"type": "delete_message", 
+					"type": "delete_message",
 					"instance_id": self.subscriber.instance_id,
 					"hub": my_user["hub"],
-					"user_id": message["user_id"], 
+					"user_id": message["user_id"],
 					"datetime": message["datetime"]
 				})
 				for sockets, user in six.iteritems(mp_users):
@@ -313,36 +320,36 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		#	for sockets, user in mp_users.items():
 		#		sockets.write_message(json_encode({"type":"active_chat_window", "user_id":my_user["id"]}))
 		elif message["type"] == "all_hubs":
-			self.write_message({"type":"all_hubs", "hubs":[_hub for _hub in six.itervalues(mp_hubs)]})
+			self.write_message({"type": "all_hubs", "hubs": [_hub for _hub in six.itervalues(mp_hubs)]})
 		elif message["type"] == "settings":
 			my_user = mp_users[self]
 			settings = message.get("settings", {})
-			if settings.get("revert_chat_order") != None:
+			if settings.get("revert_chat_order") is not None:
 				my_user["settings"]["revert_chat_order"] = settings.get("revert_chat_order", False)
-			if settings.get("send_message_enter") != None:
+			if settings.get("send_message_enter") is not None:
 				my_user["settings"]["send_message_enter"] = settings.get("send_message_enter", False)
 
 			yield tornado.gen.Task(self.redis.set, "setting_"+my_user["id"],  json_encode(my_user["settings"]))
-	
+
 	@gen.coroutine
 	def on_close(self):
 		if self in mp_users:
-			log.info("WebSocket closed by %s"%mp_users[self]["name"])
+			log.info("WebSocket closed by %s" % mp_users[self]["name"])
 			my_id = mp_users[self]["id"]
 			hub = mp_users[self]["hub"]
 			session_id = mp_users[self]["session_id"]
 			del mp_users[self]
 			del mp_cookies[self]
-			
+
 			my_realnew_user = [user for sockets, user in mp_users.items() if my_id == user["id"] and hub == user["hub"]]
 			if not my_realnew_user:
 				my_realnew_user = have_remote_users(my_id, hub)
-			
+
 			if not my_realnew_user:
 				mp_hubs[hub]["users"] -= 1
 
 			new_message = json_encode({
-				"type":"del_user", 
+				"type": "del_user",
 				"instance_id": self.subscriber.instance_id,
 				"hub": hub,
 				"user_id": my_id,
@@ -357,8 +364,6 @@ class ChatHandler(tornado.websocket.WebSocketHandler, BaseHandler):
 		else:
 			log.warning("Not found user after close socket")
 
-
-			
 
 class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOAuth2Mixin):
 	@gen.coroutine
@@ -375,7 +380,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 			return
 		client = httpclient.AsyncHTTPClient()
 		response = yield client.fetch(
-			"http://u-login.com/token.php?token=%s&host=%s://%s" % (token, self.request.protocol, self.request.host), 
+			"http://u-login.com/token.php?token=%s&host=%s://%s" % (token, self.request.protocol, self.request.host),
 			use_gzip=True
 		)
 		if response.code != 200:
@@ -397,11 +402,11 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 
 		identity = json_response.get("identity")
 		if not identity:
-			log.error("Not have indentity! json: %s"%json_response)
-		log.info("New user indetity: %s"%identity)
+			log.error("Not have indentity! json: %s" % json_response)
+		log.info("New user indetity: %s" % identity)
 		user_id = hashlib.md5(utf8(identity)).hexdigest()
 		new_user = {"id": user_id, "name": None}
-		
+
 		new_user_name = ""
 		if "nickname" in json_response:
 			new_user_name = json_response.get("nickname", "")
@@ -412,7 +417,7 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 
 		new_user["avatar"] = json_response.get("photo")
 		new_user["ismoderator"] = identity in options.moderators
-		
+
 		old_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+user_id)
 		if not old_user_settings:
 			new_user_settings = {
@@ -423,20 +428,18 @@ class AuthHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOA
 		yield tornado.gen.Task(self.redis.set, habrachat_cookie,  json_encode(recursive_unicode(new_user)))
 		self.redirect("/")
 
-	
-
 
 class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.GoogleOAuth2Mixin):
 	@tornado.gen.coroutine
 	def get(self):
 		if self.get_argument('code', False):
 			token = yield self.get_authenticated_user(
-				redirect_uri='%s://%s/google_auth'%(self.request.protocol, self.request.host),
+				redirect_uri='%s://%s/google_auth' % (self.request.protocol, self.request.host),
 				code=self.get_argument('code'))
 
 			client = httpclient.AsyncHTTPClient()
 			response = yield client.fetch(
-				"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=%s" % (token["access_token"]), 
+				"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=%s" % (token["access_token"]),
 				use_gzip=True
 			)
 			if response.code != 200:
@@ -452,8 +455,8 @@ class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.G
 				self.set_cookie("habrachat", habrachat_cookie)
 			identity = user.get("link")
 			if not identity:
-				log.error("Not have indentity! json: %s"%user)
-			log.info("New user indetity: %s"%identity)
+				log.error("Not have indentity! json: %s" % user)
+			log.info("New user indetity: %s" % identity)
 			user_id = hashlib.md5(utf8(identity)).hexdigest()
 			new_user = {"id": user_id, "name": None}
 			if "username" in user:
@@ -464,7 +467,7 @@ class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.G
 			new_user["name"] = new_user["name"][:20].replace("[", "{").replace("]", "}")
 			new_user["avatar"] = user.get("picture", "")
 			new_user["ismoderator"] = identity in options.moderators
-			
+
 			old_user_settings = yield tornado.gen.Task(self.redis.get, "setting_"+user_id)
 			if not old_user_settings:
 				new_user_settings = {
@@ -477,11 +480,12 @@ class GoogleLoginHandler(tornado.web.RequestHandler, BaseHandler, tornado.auth.G
 			self.redirect("/")
 		else:
 			yield self.authorize_redirect(
-				redirect_uri='%s://%s/google_auth'%(self.request.protocol, self.request.host),
+				redirect_uri='%s://%s/google_auth' % (self.request.protocol, self.request.host),
 				client_id=self.settings['google_oauth']['key'],
 				scope=['profile', 'email'],
 				response_type='code',
 				extra_params={'approval_prompt': 'auto'})
+
 
 class MainHandler(tornado.web.RequestHandler, BaseHandler):
 	@gen.coroutine
@@ -493,8 +497,9 @@ class MainHandler(tornado.web.RequestHandler, BaseHandler):
 		if habrachat_user:
 			self.write(templates["chat"])
 		else:
-			self.write(templates["auth"].generate(options = options, request = self.request))
+			self.write(templates["auth"].generate(options=options, request=self.request))
 		self.finish()
+
 
 class LogoutHandler(tornado.web.RequestHandler):
 	@gen.coroutine
@@ -503,20 +508,24 @@ class LogoutHandler(tornado.web.RequestHandler):
 		if not habrachat_cookie:
 			self.redirect("/")
 			return
-		
+
 		self.clear_cookie("habrachat")
 		self.redirect("/")
 
+
 class Singleton(type):
 	_instances = {}
+
 	def __call__(cls, *args, **kwargs):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
 
+
 @six.add_metaclass(Singleton)
 class Subscriber(object):
 	__metaclass__ = Singleton
+
 	def __init__(self, send_client):
 		log.info("Subscribe init")
 		self.send_client = send_client
@@ -524,13 +533,12 @@ class Subscriber(object):
 		self.sub_client = tornadoredis.Client(host=options.redis_host, port=options.redis_port, password=options.redis_password)
 		self.sub_client.connect()
 		self.sub_client.subscribe('new_messages', self.subscribe)
-		
 
 	def subscribe(self, result):
 		log.info("Subscribe new_messages")
 		self.sub_client.listen(self.on_message)
 		self.send_client.publish("new_messages", json_encode({
-			"type":"get_all_users", 
+			"type": "get_all_users",
 			"instance_id": self.instance_id
 		}))
 
@@ -545,7 +553,7 @@ class Subscriber(object):
 			#log.info(message.body)
 			if chat_message["type"] == "get_all_users":
 				self.send_client.publish("new_messages", json_encode({
-					"type":"all_users_sub", 
+					"type": "all_users_sub",
 					"instance_id": self.instance_id,
 					"users": list(mp_users.values())
 				}))
@@ -555,11 +563,11 @@ class Subscriber(object):
 					remote_users[new_user["session_id"]] = new_user
 					if not (have_remote_users(new_user["id"], new_user["hub"]) or have_local_users(new_user["id"], new_user["hub"])):
 						mp_hubs[new_user["hub"]]["users"] += 1
-						
+
 						new_user_message = json_encode({
 							"type": "new_user",
 							"instance_id": self.instance_id,
-							"hub": new_user["hub"], #dublicate for simple
+							"hub": new_user["hub"],  # dublicate for simple
 							"user": new_user
 						})
 						for sockets, user in six.iteritems(mp_users):
@@ -568,8 +576,10 @@ class Subscriber(object):
 
 				return
 			elif chat_message["type"] == "new_user":
-				#log.info("%s New remote user with session_id: %s and id:%s"%(self.instance_id, chat_message["user"]["session_id"], chat_message["user"]["id"]))
-				if  not (have_remote_users(chat_message["user"]["id"], chat_message["user"]["hub"]) or have_local_users(chat_message["user"]["id"], chat_message["user"]["hub"])):
+				if not (
+					have_remote_users(chat_message["user"]["id"], chat_message["user"]["hub"]) or
+					have_local_users(chat_message["user"]["id"], chat_message["user"]["hub"])
+				):
 					mp_hubs[chat_message["hub"]]["users"] += 1
 				remote_users[chat_message["user"]["session_id"]] = chat_message["user"]
 			elif chat_message["type"] == "del_user":
@@ -577,25 +587,28 @@ class Subscriber(object):
 				try:
 					del remote_users[chat_message["session_id"]]
 				except KeyError:
-					log.error("%s Not found remote_user %s"% (self.instance_id, chat_message["user_id"]))
+					log.error("%s Not found remote_user %s" % (self.instance_id, chat_message["user_id"]))
 					#log.error(remote_users)
 					return
 
-				
-				have_user = have_remote_users(chat_message["user_id"], chat_message["hub"]) or have_local_users(chat_message["user_id"], chat_message["hub"])
+				have_user = have_remote_users(
+					chat_message["user_id"],
+					chat_message["hub"]
+				) or have_local_users(
+					chat_message["user_id"],
+					chat_message["hub"]
+				)
 				if have_user:
 					return
 				else:
 					mp_hubs[chat_message["hub"]]["users"] -= 1
-					
-				
+
 			elif chat_message["type"] == "new_message":
 				pass
 			elif chat_message["type"] == "delete_message":
 				pass
 			else:
 				return
-				
 
 			for sockets, user in six.iteritems(mp_users):
 				if chat_message["hub"] == user["hub"]:
@@ -604,12 +617,14 @@ class Subscriber(object):
 					except tornado.websocket.WebSocketClosedError:
 						pass
 
+
 @gen.engine
 def init_subscribe():
 	Subscriber(application.settings["redis"])
 
+
 def cleints_ping():
-	log.info("Ping to %i users."%(len(mp_users)))
+	log.info("Ping to %i users." % (len(mp_users)))
 	for sockets, user in six.iteritems(mp_users):
 		try:
 			sockets.ping("ping")
@@ -626,14 +641,15 @@ application = tornado.web.Application([
 	(r'/', MainHandler)
 ])
 
+
 def set_process_name(name):
 	try:
 		import setproctitle
 		setproctitle.setproctitle(name)
 	except:
-		pass # Ignore errors, since this is only cosmetic
+		pass  # Ignore errors, since this is only cosmetic
 
-if __name__ ==  "__main__":
+if __name__ == "__main__":
 	tornado_config_file = None
 	tornado_port = None
 	if "HEROKU" in os.environ:
@@ -658,25 +674,25 @@ if __name__ ==  "__main__":
 		options.google_oauth["key"] = os.environ.get("GOOGLE_OAUTH_KEY")
 		options.google_oauth["secret"] = os.environ.get("GOOGLE_OAUTH_SECRET")
 	else:
-		if len(sys.argv)==4 and sys.argv[3]=="daemon":
-			import lockfile, daemon
+		if len(sys.argv) == 4 and sys.argv[3] == "daemon":
+			import lockfile
+			import daemon
 			log_daemon = open("tornado.log", "a+")
 			ctx = daemon.DaemonContext(
-				stdout=log_daemon, 
+				stdout=log_daemon,
 				stderr=log_daemon,
 				working_directory=".",
 
 				pidfile=lockfile.FileLock("/tmp/habrachat"+sys.argv[2]+".pid"))
 			ctx.open()
-	
+
 	server = tornado.httpserver.HTTPServer(application)
 	server.bind(tornado_port)
 	set_process_name("habrachat")
-	
+
 	# start(0) starts a subprocess for each CPU core
 	server.start(options.subprocess)
 	set_process_name("habrachat")
-	
 
 	for hub in options.hubs:
 		mp_hubs[hub["name"]] = {
@@ -684,15 +700,15 @@ if __name__ ==  "__main__":
 			"label": hub["label"],
 			"users": 0
 		}
-		
+
 	current_zone = timezone(options.timezone)
 
 	loader = template.Loader(options.template_root)
 	application.settings["loader"] = loader
-	templates["auth"] =  loader.load("auth.html")
-	templates["chat"] =  loader.load("chat.html").generate(options = options)
+	templates["auth"] = loader.load("auth.html")
+	templates["chat"] = loader.load("chat.html").generate(options=options)
 
-	application.settings["google_oauth"]  = options.google_oauth
+	application.settings["google_oauth"] = options.google_oauth
 	application.settings["redis"] = tornadoredis.Client(host=options.redis_host, port=options.redis_port, password=options.redis_password)
 	try:
 		application.settings["redis"].connect()
