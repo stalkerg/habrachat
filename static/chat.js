@@ -9,6 +9,8 @@ define([
 	"dojo/string",
 	"dojo/date/locale",
 	"dojo/date/stamp",
+	"dojo/router",
+	"dojo/hash",
 	"dojo/text!/static/tmpl/user.html",
 	"dojo/text!/static/tmpl/message.html",
 	"dojo/text!/static/tmpl/hub.html",
@@ -25,6 +27,8 @@ define([
 	string,
 	locale,
 	stamp,
+	router,
+	hash,
 	user_template,
 	message_template,
 	hub_template
@@ -46,7 +50,7 @@ define([
 		return txt.toString();
 	};
 
-	var 	chat_ws = null,
+	var chat_ws = null,
 		init_reconnect_timer = null,
 		fist_update = true,
 		my_user = null,
@@ -66,7 +70,7 @@ define([
 			self.lock_ui();
 			self.init_tabs();
 			self.init_settings();
-			self.websocket_init();
+			//self.websocket_init();
 			on(dom.byId("chat_send_button"), "click", function(evt) {self.submit_message(evt)});
 			on(self.message_textarea, "keydown", function(evt) {
 				if (send_message_enter) {
@@ -107,9 +111,27 @@ define([
 			setInterval(function() {
 				self.websocket_ping();
 			}, 1000*25);
+
+			router.register("/hub/:name", function(evt) {
+				current_hub = evt.params.name;
+				current_hub_url = "hub="+current_hub;
+				change_hub = true;
+				if (chat_ws != null) {
+					chat_ws.close();
+				} else {
+					self.websocket_init();
+					change_hub = false;
+				}
+			});
+			router.startup();
+			if (hash()=="") {
+				router.go("/hub/main_room");
+			}
 		},
 		init_tabs: function() {
-			on(dom.byId("chat_users_tab"), "click", function() {
+			on(dom.byId("chat_users_tab"), "click", function(e) {
+				e.preventDefault();
+				e.stopPropagation();
 				domClass.add(this, "active");
 				domClass.remove(dom.byId("chat_hubs_tab"), "active");
 				domClass.remove(dom.byId("chat_settings_tab"), "active");
@@ -117,8 +139,11 @@ define([
 				domStyle.set(dom.byId("chat_hubs"), {display: "none"});
 				domStyle.set(dom.byId("chat_users"), {display: "block"});
 				domStyle.set(dom.byId("chat_settings"), {display: "none"});
+				return false;
 			});
-			on(dom.byId("chat_hubs_tab"), "click", function() {
+			on(dom.byId("chat_hubs_tab"), "click", function(e) {
+				e.preventDefault();
+				e.stopPropagation();
 				domClass.add(this, "active");
 				domClass.remove(dom.byId("chat_users_tab"), "active");
 				domClass.remove(dom.byId("chat_settings_tab"), "active");
@@ -126,8 +151,11 @@ define([
 				domStyle.set(dom.byId("chat_users"), {display: "none"});
 				domStyle.set(dom.byId("chat_hubs"), {display: "block"});
 				domStyle.set(dom.byId("chat_settings"), {display: "none"});
+				return false;
 			});
-			on(dom.byId("chat_settings_tab"), "click", function() {
+			on(dom.byId("chat_settings_tab"), "click", function(e) {
+				e.preventDefault();
+				e.stopPropagation();
 				domClass.add(this, "active");
 				domClass.remove(dom.byId("chat_users_tab"), "active");
 				domClass.remove(dom.byId("chat_hubs_tab"), "active");
@@ -135,6 +163,7 @@ define([
 				domStyle.set(dom.byId("chat_users"), {display: "none"});
 				domStyle.set(dom.byId("chat_hubs"), {display: "none"});
 				domStyle.set(dom.byId("chat_settings"), {display: "block"});
+				return false;
 			});
 		},
 		init_settings: function() {
@@ -430,10 +459,7 @@ define([
 			return hub;
 		},
 		select_hub: function(hub) {
-			current_hub = hub.getAttribute("data-name");
-			current_hub_url = "hub="+current_hub;
-			change_hub = true;
-			chat_ws.close();
+			router.go("/hub/"+hub.getAttribute("data-name"));
 		},
 		submit_message: function(evt) {
 			var self = this;
